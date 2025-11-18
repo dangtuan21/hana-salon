@@ -93,7 +93,6 @@ async def root():
             "process_booking": "/process-booking",
             "validate_booking": "/validate-booking",
             "get_booking": "/booking/{confirmation_id}",
-            "update_booking_status": "/booking/{confirmation_id}/status",
             "docs": "/docs"
         }
     }
@@ -238,32 +237,6 @@ async def get_booking_by_confirmation(confirmation_id: str):
         }
     }
 
-@app.put("/booking/{confirmation_id}/status")
-async def update_booking_status(confirmation_id: str, status: str):
-    """Update booking status (confirmed, completed, cancelled)"""
-    from database import get_db_manager
-    
-    valid_statuses = ["confirmed", "completed", "cancelled", "no_show"]
-    if status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
-    
-    db = get_db_manager()
-    booking = db.get_booking_by_confirmation_id(confirmation_id)
-    
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
-    success = db.update_booking_status(booking._id, status)
-    
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update booking status")
-    
-    return {
-        "success": True,
-        "confirmation_id": confirmation_id,
-        "new_status": status,
-        "message": f"Booking status updated to {status}"
-    }
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8060))

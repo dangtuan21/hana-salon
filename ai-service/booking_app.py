@@ -203,49 +203,9 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
     
     db = get_db_manager()
     
-    # Handle customer creation/retrieval
-    customer = None
-    if state["customer_phone"] != "Not specified":
-        customer = db.get_customer_by_phone(state["customer_phone"])
-        
-    if not customer and state["customer_name"] != "Unknown":
-        # Create new customer
-        customer = Customer(
-            name=state["customer_name"],
-            phone=state["customer_phone"] if state["customer_phone"] != "Not specified" else f"temp_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-            preferences={"preferred_technician": state["technician_name"] if state["technician_name"] else None}
-        )
-        customer_id = db.create_customer(customer)
-        customer._id = customer_id
-        print(f"📝 Created new customer: {customer.name}")
-    
     # Generate confirmation ID
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     state["confirmation_id"] = f"SPA-{timestamp}"
-    
-    # Save booking to database
-    if customer and state["service_id"] and state["technician_id"]:
-        booking = Booking(
-            customer_id=customer._id,
-            service_id=state["service_id"],
-            technician_id=state["technician_id"],
-            date=state["date"],
-            time=state["time"],
-            duration_minutes=state["duration_minutes"],
-            total_cost=state["total_cost"],
-            status="confirmed",
-            confirmation_id=state["confirmation_id"],
-            notes=f"Booked via AI assistant for {state['service_name']}"
-        )
-        
-        booking_id = db.create_booking(booking)
-        print(f"💾 Saved booking to database: {booking_id}")
-        
-        # Update customer booking history
-        if customer.booking_history is None:
-            customer.booking_history = []
-        customer.booking_history.append(booking_id)
-        db.update_customer(customer._id, {"booking_history": customer.booking_history})
     
     confirmation_prompt = f"""
     Create a professional salon booking confirmation message for:
