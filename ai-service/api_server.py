@@ -11,9 +11,51 @@ import uvicorn
 from typing import Dict, Any
 import os
 from dotenv import load_dotenv
+from enum import Enum
 
 # Import the existing booking workflow
 from booking_app import process_booking, create_booking_workflow
+
+class ValidationStatusCode(str, Enum):
+    """Validation status codes for booking requests"""
+    VALID = "VALID"
+    INVALID = "INVALID"
+    MISSING_INFO = "MISSING_INFO"
+    INVALID_DATE = "INVALID_DATE"
+    INVALID_SERVICE = "INVALID_SERVICE"
+    INVALID_TECHNICIAN = "INVALID_TECHNICIAN"
+    UNKNOWN = "UNKNOWN"
+
+def parse_validation_status(validation_status: str) -> tuple[ValidationStatusCode, str]:
+    """Parse validation status into code and text"""
+    if " - " in validation_status:
+        parts = validation_status.split(" - ", 1)
+        code_str = parts[0].strip()
+        text = parts[1].strip()
+        
+        # Map to enum
+        if code_str == "VALID":
+            return ValidationStatusCode.VALID, text
+        elif code_str == "INVALID":
+            return ValidationStatusCode.INVALID, text
+        else:
+            return ValidationStatusCode.UNKNOWN, text
+            
+    elif validation_status.startswith("VALID"):
+        return ValidationStatusCode.VALID, "Booking validated successfully"
+    elif validation_status.startswith("INVALID"):
+        # Determine specific invalid type based on text
+        text = validation_status.replace("INVALID", "").strip()
+        if "service" in text.lower():
+            return ValidationStatusCode.INVALID_SERVICE, text
+        elif "date" in text.lower() or "time" in text.lower():
+            return ValidationStatusCode.INVALID_DATE, text
+        elif "technician" in text.lower():
+            return ValidationStatusCode.INVALID_TECHNICIAN, text
+        else:
+            return ValidationStatusCode.INVALID, text
+    else:
+        return ValidationStatusCode.UNKNOWN, validation_status
 
 # Load environment variables
 load_dotenv()
@@ -52,7 +94,8 @@ class BookingResponse(BaseModel):
     time: str
     duration_minutes: int
     total_cost: float
-    validation_status: str
+    validation_status_code: ValidationStatusCode
+    validation_status_text: str
     confirmation_id: str
     final_response: str
     available_technicians: list
@@ -70,7 +113,8 @@ class ValidationResponse(BaseModel):
     time: str
     duration_minutes: int
     total_cost: float
-    validation_status: str
+    validation_status_code: ValidationStatusCode
+    validation_status_text: str
     available_technicians: list
     service_details: dict
 
@@ -125,6 +169,9 @@ async def process_booking_endpoint(request: BookingRequest):
         # Process the booking using the existing workflow
         result = process_booking(request.booking_request)
         
+        # Parse validation status into structured format
+        status_code, status_text = parse_validation_status(result['validation_status'])
+        
         # Convert the result to our enhanced response model
         response = BookingResponse(
             customer_name=result['customer_name'],
@@ -137,7 +184,8 @@ async def process_booking_endpoint(request: BookingRequest):
             time=result['time'],
             duration_minutes=result['duration_minutes'],
             total_cost=result['total_cost'],
-            validation_status=result['validation_status'],
+            validation_status_code=status_code,
+            validation_status_text=status_text,
             confirmation_id=result['confirmation_id'],
             final_response=result['final_response'],
             available_technicians=result['available_technicians'],
@@ -180,12 +228,24 @@ async def validate_booking_endpoint(request: ValidationRequest):
         from booking_app import booking_validation_node
         validation_result = booking_validation_node(initial_state)
         
+        # Parse validation status into structured format
+        status_code, status_text = parse_validation_status(validation_result.get('validation_status', ''))
+        
         response = ValidationResponse(
-            customer_name=validation_result['customer_name'],
-            service_type=validation_result['service_type'],
-            date=validation_result['date'],
-            time=validation_result['time'],
-            validation_status=validation_result['validation_status']
+            customer_name=validation_result.get('customer_name', ''),
+            customer_phone=validation_result.get('customer_phone', ''),
+            service_id=validation_result.get('service_id', ''),
+            service_name=validation_result.get('service_name', ''),
+            technician_id=validation_result.get('technician_id', ''),
+            technician_name=validation_result.get('technician_name', ''),
+            date=validation_result.get('date', ''),
+            time=validation_result.get('time', ''),
+            duration_minutes=validation_result.get('duration_minutes', 0),
+            total_cost=validation_result.get('total_cost', 0.0),
+            validation_status_code=status_code,
+            validation_status_text=status_text,
+            available_technicians=validation_result.get('available_technicians', []),
+            service_details=validation_result.get('service_details', {})
         )
         
         print(f"✅ Validation completed for {response.customer_name}")
