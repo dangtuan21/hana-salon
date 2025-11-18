@@ -18,7 +18,7 @@ const swaggerDefinition: SwaggerDefinition = {
   },
   servers: [
     {
-      url: 'http://localhost:3060',
+      url: 'http://localhost:8060',
       description: 'Development server'
     },
     {
@@ -34,6 +34,10 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'API Info',
       description: 'API information and documentation'
+    },
+    {
+      name: 'Services',
+      description: 'Salon services management - CRUD operations for managing nail care services'
     }
   ]
 };

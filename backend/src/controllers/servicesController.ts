@@ -41,3 +41,131 @@ export const getServiceById = asyncHandler(async (req: Request, res: Response): 
     ResponseUtil.internalError(res, 'Failed to fetch service');
   }
 });
+
+export const createService = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      name,
+      category,
+      duration_minutes,
+      price,
+      description,
+      required_skill_level,
+      popularity_score
+    } = req.body;
+
+    // Basic validation
+    if (!name || !category || !duration_minutes || !price) {
+      ResponseUtil.badRequest(res, 'Missing required fields: name, category, duration_minutes, price');
+      return;
+    }
+
+    const serviceData = {
+      name: name.trim(),
+      category: category.trim(),
+      duration_minutes: Number(duration_minutes),
+      price: Number(price),
+      description: description?.trim(),
+      required_skill_level: required_skill_level?.trim(),
+      popularity_score: popularity_score ? Number(popularity_score) : undefined
+    };
+
+    const newService = await Service.create(serviceData);
+    
+    logger.info(`Created new service: ${newService.name}`);
+    
+    ResponseUtil.success(res, newService, 'Service created successfully', 201);
+    
+  } catch (error: any) {
+    logger.error('Error creating service:', error);
+    
+    if (error.name === 'ValidationError') {
+      ResponseUtil.badRequest(res, `Validation error: ${error.message}`);
+    } else {
+      ResponseUtil.internalError(res, 'Failed to create service');
+    }
+  }
+});
+
+export const updateService = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body };
+
+    // Remove fields that shouldn't be updated directly
+    delete updateData._id;
+    delete updateData.created_at;
+    
+    // Update the updated_at field
+    updateData.updated_at = new Date();
+
+    // Trim string fields if they exist
+    if (updateData.name) updateData.name = updateData.name.trim();
+    if (updateData.category) updateData.category = updateData.category.trim();
+    if (updateData.description) updateData.description = updateData.description.trim();
+    if (updateData.required_skill_level) updateData.required_skill_level = updateData.required_skill_level.trim();
+
+    // Convert numeric fields
+    if (updateData.duration_minutes) updateData.duration_minutes = Number(updateData.duration_minutes);
+    if (updateData.price) updateData.price = Number(updateData.price);
+    if (updateData.popularity_score) updateData.popularity_score = Number(updateData.popularity_score);
+
+    const updatedService = await Service.findByIdAndUpdate(
+      id,
+      updateData,
+      { 
+        new: true, // Return the updated document
+        runValidators: true // Run schema validation
+      }
+    );
+
+    if (!updatedService) {
+      ResponseUtil.notFound(res, 'Service not found');
+      return;
+    }
+
+    logger.info(`Updated service: ${updatedService.name}`);
+    
+    ResponseUtil.success(res, updatedService, 'Service updated successfully');
+    
+  } catch (error: any) {
+    logger.error('Error updating service:', error);
+    
+    if (error.name === 'ValidationError') {
+      ResponseUtil.badRequest(res, `Validation error: ${error.message}`);
+    } else if (error.name === 'CastError') {
+      ResponseUtil.badRequest(res, 'Invalid service ID format');
+    } else {
+      ResponseUtil.internalError(res, 'Failed to update service');
+    }
+  }
+});
+
+export const deleteService = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    const deletedService = await Service.findByIdAndDelete(id);
+    
+    if (!deletedService) {
+      ResponseUtil.notFound(res, 'Service not found');
+      return;
+    }
+    
+    logger.info(`Deleted service: ${deletedService.name}`);
+    
+    ResponseUtil.success(res, {
+      id: deletedService._id,
+      name: deletedService.name
+    }, 'Service deleted successfully');
+    
+  } catch (error: any) {
+    logger.error('Error deleting service:', error);
+    
+    if (error.name === 'CastError') {
+      ResponseUtil.badRequest(res, 'Invalid service ID format');
+    } else {
+      ResponseUtil.internalError(res, 'Failed to delete service');
+    }
+  }
+});

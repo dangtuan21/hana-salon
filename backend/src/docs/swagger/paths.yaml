@@ -168,3 +168,239 @@ paths:
                 data:
                   alive: true
                 timestamp: "2023-11-18T00:15:00.000Z"
+
+  /api/services:
+    get:
+      tags: [Services]
+      summary: Get all services
+      description: Retrieve all salon services with their details
+      responses:
+        200:
+          description: Services retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          services:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Service'
+                          count:
+                            type: integer
+              example:
+                success: true
+                message: "Services retrieved successfully"
+                data:
+                  services:
+                    - _id: "691bf2c5779a3bff78c776e7"
+                      name: "Classic Manicure"
+                      category: "Basic Services"
+                      duration_minutes: 45
+                      price: 35
+                      description: "Traditional nail care with cuticle treatment"
+                      required_skill_level: "Junior"
+                      popularity_score: 8
+                      created_at: "2025-11-18T04:15:01.850Z"
+                      updated_at: "2025-11-18T04:15:01.850Z"
+                  count: 16
+                timestamp: "2023-11-18T00:15:00.000Z"
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Services]
+      summary: Create a new service
+      description: Create a new salon service
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceInput'
+            example:
+              name: "Gel Manicure"
+              category: "Advanced Services"
+              duration_minutes: 60
+              price: 55
+              description: "Long-lasting gel polish with UV curing"
+              required_skill_level: "Senior"
+              popularity_score: 9
+      responses:
+        201:
+          description: Service created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Service'
+              example:
+                success: true
+                message: "Service created successfully"
+                data:
+                  _id: "691bf2c5779a3bff78c776ea"
+                  name: "Gel Manicure"
+                  category: "Advanced Services"
+                  duration_minutes: 60
+                  price: 55
+                  description: "Long-lasting gel polish with UV curing"
+                  required_skill_level: "Senior"
+                  popularity_score: 9
+                  created_at: "2025-11-18T04:15:01.962Z"
+                  updated_at: "2025-11-18T04:15:01.962Z"
+                timestamp: "2023-11-18T00:15:00.000Z"
+        400:
+          $ref: '#/components/responses/BadRequest'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/services/{id}:
+    get:
+      tags: [Services]
+      summary: Get service by ID
+      description: Retrieve a specific service by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+            example: "691bf2c5779a3bff78c776e7"
+      responses:
+        200:
+          description: Service retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Service'
+              example:
+                success: true
+                message: "Service retrieved successfully"
+                data:
+                  _id: "691bf2c5779a3bff78c776e7"
+                  name: "Classic Manicure"
+                  category: "Basic Services"
+                  duration_minutes: 45
+                  price: 35
+                  description: "Traditional nail care with cuticle treatment"
+                  required_skill_level: "Junior"
+                  popularity_score: 8
+                  created_at: "2025-11-18T04:15:01.850Z"
+                  updated_at: "2025-11-18T04:15:01.850Z"
+                timestamp: "2023-11-18T00:15:00.000Z"
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Services]
+      summary: Update service
+      description: Update an existing service by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+            example: "691bf2c5779a3bff78c776e7"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceUpdate'
+            example:
+              name: "Premium Classic Manicure"
+              price: 40
+              popularity_score: 9
+      responses:
+        200:
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Service'
+              example:
+                success: true
+                message: "Service updated successfully"
+                data:
+                  _id: "691bf2c5779a3bff78c776e7"
+                  name: "Premium Classic Manicure"
+                  category: "Basic Services"
+                  duration_minutes: 45
+                  price: 40
+                  description: "Traditional nail care with cuticle treatment"
+                  required_skill_level: "Junior"
+                  popularity_score: 9
+                  created_at: "2025-11-18T04:15:01.850Z"
+                  updated_at: "2025-11-18T05:47:46.563Z"
+                timestamp: "2023-11-18T00:15:00.000Z"
+        400:
+          $ref: '#/components/responses/BadRequest'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Services]
+      summary: Delete service
+      description: Delete a service by its ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+            example: "691bf2c5779a3bff78c776e7"
+      responses:
+        200:
+          description: Service deleted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+              example:
+                success: true
+                message: "Service deleted successfully"
+                data:
+                  id: "691bf2c5779a3bff78c776e7"
+                  name: "Classic Manicure"
+                timestamp: "2023-11-18T00:15:00.000Z"
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'

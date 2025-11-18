@@ -68,6 +68,147 @@ components:
               enum: [connected, disconnected]
       required: [status, timestamp, uptime, version, environment]
 
+    Service:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique service identifier
+          example: "691bf2c5779a3bff78c776e7"
+        name:
+          type: string
+          description: Service name
+          example: "Classic Manicure"
+        category:
+          type: string
+          description: Service category
+          example: "Basic Services"
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 300
+          description: Service duration in minutes
+          example: 45
+        price:
+          type: number
+          minimum: 0
+          description: Service price in dollars
+          example: 35
+        description:
+          type: string
+          description: Service description
+          example: "Traditional nail care with cuticle treatment, shaping, and regular polish"
+        required_skill_level:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Required skill level for technician
+          example: "Junior"
+        popularity_score:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Service popularity score (0-10)
+          example: 8
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2025-11-18T04:15:01.850Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2025-11-18T04:15:01.850Z"
+      required: [_id, name, category, duration_minutes, price, created_at, updated_at]
+
+    ServiceInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Service name
+          example: "Classic Manicure"
+        category:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Service category
+          example: "Basic Services"
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 300
+          description: Service duration in minutes
+          example: 45
+        price:
+          type: number
+          minimum: 0
+          description: Service price in dollars
+          example: 35
+        description:
+          type: string
+          maxLength: 500
+          description: Service description
+          example: "Traditional nail care with cuticle treatment, shaping, and regular polish"
+        required_skill_level:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Required skill level for technician
+          example: "Junior"
+        popularity_score:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Service popularity score (0-10)
+          example: 8
+      required: [name, category, duration_minutes, price]
+
+    ServiceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Service name
+          example: "Premium Classic Manicure"
+        category:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Service category
+          example: "Basic Services"
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 300
+          description: Service duration in minutes
+          example: 50
+        price:
+          type: number
+          minimum: 0
+          description: Service price in dollars
+          example: 40
+        description:
+          type: string
+          maxLength: 500
+          description: Service description
+          example: "Enhanced traditional nail care with premium products"
+        required_skill_level:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Required skill level for technician
+          example: "Senior"
+        popularity_score:
+          type: integer
+          minimum: 0
+          maximum: 10
+          description: Service popularity score (0-10)
+          example: 9
+      description: All fields are optional for updates
+
   responses:
     BadRequest:
       description: Bad Request

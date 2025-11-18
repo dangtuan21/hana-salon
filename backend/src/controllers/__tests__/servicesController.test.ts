@@ -214,6 +214,179 @@ describe('Services Controller', () => {
     });
   });
 
+  describe('POST /api/services', () => {
+    test('should create a new service with valid data', async () => {
+      const newService = {
+        name: 'Test Service',
+        category: 'Test Category',
+        duration_minutes: 60,
+        price: 50,
+        description: 'Test service description',
+        required_skill_level: 'Senior',
+        popularity_score: 7
+      };
+
+      const response = await request(app)
+        .post('/api/services')
+        .send(newService)
+        .expect(201);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe(newService.name);
+      expect(response.body.data.category).toBe(newService.category);
+      expect(response.body.data.duration_minutes).toBe(newService.duration_minutes);
+      expect(response.body.data.price).toBe(newService.price);
+      expect(response.body.data._id).toBeDefined();
+      expect(response.body.message).toBe('Service created successfully');
+
+      // Clean up
+      await Service.findByIdAndDelete(response.body.data._id);
+    });
+
+    test('should return 400 for missing required fields', async () => {
+      const incompleteService = {
+        name: 'Test Service'
+        // Missing required fields
+      };
+
+      const response = await request(app)
+        .post('/api/services')
+        .send(incompleteService)
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('BAD_REQUEST');
+    });
+
+    test('should handle validation errors', async () => {
+      const invalidService = {
+        name: 'Test Service',
+        category: 'Test Category',
+        duration_minutes: -10, // Invalid: negative duration
+        price: 50
+      };
+
+      const response = await request(app)
+        .post('/api/services')
+        .send(invalidService)
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('BAD_REQUEST');
+    });
+  });
+
+  describe('PUT /api/services/:id', () => {
+    let testService: any;
+
+    beforeEach(async () => {
+      testService = await Service.create({
+        name: 'Original Service',
+        category: 'Original Category',
+        duration_minutes: 30,
+        price: 25
+      });
+    });
+
+    afterEach(async () => {
+      if (testService?._id) {
+        await Service.findByIdAndDelete(testService._id);
+      }
+    });
+
+    test('should update existing service', async () => {
+      const updateData = {
+        name: 'Updated Service',
+        price: 35
+      };
+
+      const response = await request(app)
+        .put(`/api/services/${testService._id}`)
+        .send(updateData)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe(updateData.name);
+      expect(response.body.data.price).toBe(updateData.price);
+      expect(response.body.data.category).toBe(testService.category); // Unchanged
+      expect(response.body.message).toBe('Service updated successfully');
+    });
+
+    test('should return 404 for non-existent service', async () => {
+      const fakeId = '507f1f77bcf86cd799439011';
+      
+      const response = await request(app)
+        .put(`/api/services/${fakeId}`)
+        .send({ name: 'Updated Name' })
+        .expect(404);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('NOT_FOUND');
+    });
+
+    test('should handle validation errors on update', async () => {
+      const invalidUpdate = {
+        duration_minutes: -5 // Invalid: negative duration
+      };
+
+      const response = await request(app)
+        .put(`/api/services/${testService._id}`)
+        .send(invalidUpdate)
+        .expect(400);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('BAD_REQUEST');
+    });
+  });
+
+  describe('DELETE /api/services/:id', () => {
+    let testService: any;
+
+    beforeEach(async () => {
+      testService = await Service.create({
+        name: 'Service to Delete',
+        category: 'Delete Category',
+        duration_minutes: 45,
+        price: 30
+      });
+    });
+
+    test('should delete existing service', async () => {
+      const response = await request(app)
+        .delete(`/api/services/${testService._id}`)
+        .expect(200);
+
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.id).toBe(testService._id.toString());
+      expect(response.body.data.name).toBe(testService.name);
+      expect(response.body.message).toBe('Service deleted successfully');
+
+      // Verify service is actually deleted
+      const deletedService = await Service.findById(testService._id);
+      expect(deletedService).toBeNull();
+      
+      // Prevent cleanup from running
+      testService = null;
+    });
+
+    test('should return 404 for non-existent service', async () => {
+      const fakeId = '507f1f77bcf86cd799439011';
+      
+      const response = await request(app)
+        .delete(`/api/services/${fakeId}`)
+        .expect(404);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBe('NOT_FOUND');
+    });
+
+    afterEach(async () => {
+      if (testService?._id) {
+        await Service.findByIdAndDelete(testService._id);
+      }
+    });
+  });
+
   describe('Response Format', () => {
     test('should return consistent response format for all endpoints', async () => {
       const endpoints = [
