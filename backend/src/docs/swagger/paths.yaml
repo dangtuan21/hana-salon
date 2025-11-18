@@ -404,3 +404,270 @@ paths:
           $ref: '#/components/responses/NotFound'
         500:
           $ref: '#/components/responses/InternalServerError'
+
+  /api/customers:
+    get:
+      tags: [Customers]
+      summary: Get all customers
+      description: Retrieve all customers with pagination, search, and filtering
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+        - name: isActive
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          description: Search by name or email
+          schema:
+            type: string
+      responses:
+        200:
+          description: Customers retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          customers:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Customer'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Customers]
+      summary: Create a new customer
+      description: Create a new customer account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerInput'
+      responses:
+        201:
+          description: Customer created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Customer'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/technicians:
+    get:
+      tags: [Technicians]
+      summary: Get all technicians
+      description: Retrieve all technicians with pagination, search, and filtering
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            default: 10
+        - name: isActive
+          in: query
+          description: Filter by active status
+          schema:
+            type: boolean
+        - name: skillLevel
+          in: query
+          description: Filter by skill level
+          schema:
+            type: string
+            enum: [Junior, Senior, Expert, Master]
+        - name: specialty
+          in: query
+          description: Filter by specialty
+          schema:
+            type: string
+        - name: search
+          in: query
+          description: Search by name or employee ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Technicians retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          technicians:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Technician'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Technicians]
+      summary: Create a new technician
+      description: Create a new technician profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianInput'
+      responses:
+        201:
+          description: Technician created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Technician'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/technicians/{id}:
+    get:
+      tags: [Technicians]
+      summary: Get technician by ID
+      description: Retrieve a specific technician by their ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Technician ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Technician retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Technician'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Technicians]
+      summary: Update technician
+      description: Update an existing technician's information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Technician ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TechnicianUpdate'
+      responses:
+        200:
+          description: Technician updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Technician'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags: [Technicians]
+      summary: Deactivate technician
+      description: Soft delete a technician by setting isActive to false
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Technician ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Technician deactivated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          name:
+                            type: string
+                          employeeId:
+                            type: string
+                          email:
+                            type: string
+        404:
+          $ref: '#/components/responses/NotFound'
+        500:
+          $ref: '#/components/responses/InternalServerError'

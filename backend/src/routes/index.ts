@@ -1,12 +1,18 @@
 import { Router, Request, Response } from 'express';
 import healthRoutes from './healthRoutes';
 import servicesRoutes from './servicesRoutes';
+import customersRoutes from './customersRoutes';
+import techniciansRoutes from './techniciansRoutes';
+import bookingsRoutes from './bookingsRoutes';
 
 const router = Router();
 
 // Mount route modules
 router.use('/', healthRoutes);
 router.use('/services', servicesRoutes);
+router.use('/customers', customersRoutes);
+router.use('/technicians', techniciansRoutes);
+router.use('/bookings', bookingsRoutes);
 
 // API info endpoint
 router.get('/', (req: Request, res: Response) => {
@@ -20,6 +26,9 @@ router.get('/', (req: Request, res: Response) => {
         ready: '/api/ready',
         live: '/api/live',
         services: '/api/services',
+        customers: '/api/customers',
+        technicians: '/api/technicians',
+        bookings: '/api/bookings',
         documentation: '/api-docs'
       }
     },

@@ -21,9 +21,9 @@ class Database {
     }
 
     try {
-      const mongoUrl = process.env.MONGODB_URL;
+      const mongoUrl = process.env.MONGODB_URI || process.env.MONGODB_URL || process.env.MONGODB_CONNECTION_STRING;
       if (!mongoUrl) {
-        throw new Error('MONGODB_URL environment variable is not set');
+        throw new Error('MongoDB connection string not found. Please set MONGODB_URI, MONGODB_URL, or MONGODB_CONNECTION_STRING environment variable');
       }
 
       await mongoose.connect(mongoUrl, {

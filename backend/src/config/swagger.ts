@@ -42,6 +42,14 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'Services',
       description: 'Salon services management - CRUD operations for managing nail care services'
+    },
+    {
+      name: 'Customers',
+      description: 'Customer management endpoints'
+    },
+    {
+      name: 'Technicians',
+      description: 'Technician management endpoints'
     }
   ]
 };

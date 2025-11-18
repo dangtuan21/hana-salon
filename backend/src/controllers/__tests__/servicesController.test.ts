@@ -1,5 +1,5 @@
 import request from 'supertest';
-import app from '../../server';
+import app from '../../app';
 import database from '../../config/database';
 import { Service } from '../../models/Service';
 

@@ -209,6 +209,551 @@ components:
           example: 9
       description: All fields are optional for updates
 
+    # Customer Schemas
+    Customer:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique customer identifier
+          example: "691bf2c5779a3bff78c776e7"
+        firstName:
+          type: string
+          description: Customer's first name
+          example: "Sarah"
+        lastName:
+          type: string
+          description: Customer's last name
+          example: "Johnson"
+        email:
+          type: string
+          format: email
+          description: Customer's email address
+          example: "sarah.johnson@email.com"
+        phone:
+          type: string
+          description: Customer's phone number
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          description: Customer's date of birth
+          example: "1990-05-15"
+        gender:
+          type: string
+          enum: [male, female, other, prefer_not_to_say]
+          description: Customer's gender
+          example: "female"
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+              example: "123 Main St"
+            city:
+              type: string
+              example: "New York"
+            state:
+              type: string
+              example: "NY"
+            zipCode:
+              type: string
+              example: "10001"
+            country:
+              type: string
+              example: "United States"
+        preferences:
+          type: object
+          properties:
+            preferredTechnician:
+              type: string
+              description: ID of preferred technician
+              example: "691bf2c5779a3bff78c776e8"
+            allergies:
+              type: array
+              items:
+                type: string
+              example: ["latex", "shellfish"]
+            notes:
+              type: string
+              example: "Prefers morning appointments"
+        loyaltyPoints:
+          type: integer
+          minimum: 0
+          description: Customer's loyalty points
+          example: 150
+        totalVisits:
+          type: integer
+          minimum: 0
+          description: Total number of visits
+          example: 12
+        totalSpent:
+          type: number
+          minimum: 0
+          description: Total amount spent
+          example: 450.75
+        isActive:
+          type: boolean
+          description: Whether the customer is active
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          description: Customer creation timestamp
+          example: "2023-11-18T00:15:00.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Customer last update timestamp
+          example: "2023-11-18T00:15:00.000Z"
+
+    CustomerInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+          description: Customer's first name
+          example: "Sarah"
+        lastName:
+          type: string
+          maxLength: 50
+          description: Customer's last name
+          example: "Johnson"
+        email:
+          type: string
+          format: email
+          description: Customer's email address
+          example: "sarah.johnson@email.com"
+        phone:
+          type: string
+          pattern: "^[\\+]?[1-9][\\d]{0,15}$"
+          description: Customer's phone number
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          description: Customer's date of birth
+          example: "1990-05-15"
+        gender:
+          type: string
+          enum: [male, female, other, prefer_not_to_say]
+          description: Customer's gender
+          example: "female"
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+              maxLength: 100
+              example: "123 Main St"
+            city:
+              type: string
+              maxLength: 50
+              example: "New York"
+            state:
+              type: string
+              maxLength: 50
+              example: "NY"
+            zipCode:
+              type: string
+              maxLength: 20
+              example: "10001"
+            country:
+              type: string
+              maxLength: 50
+              example: "United States"
+        preferences:
+          type: object
+          properties:
+            preferredTechnician:
+              type: string
+              description: ID of preferred technician
+              example: "691bf2c5779a3bff78c776e8"
+            allergies:
+              type: array
+              items:
+                type: string
+              example: ["latex", "shellfish"]
+            notes:
+              type: string
+              maxLength: 500
+              example: "Prefers morning appointments"
+
+    CustomerUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+          description: Customer's first name
+          example: "Sarah"
+        lastName:
+          type: string
+          maxLength: 50
+          description: Customer's last name
+          example: "Johnson"
+        email:
+          type: string
+          format: email
+          description: Customer's email address
+          example: "sarah.johnson@email.com"
+        phone:
+          type: string
+          pattern: "^[\\+]?[1-9][\\d]{0,15}$"
+          description: Customer's phone number
+          example: "+1234567890"
+        dateOfBirth:
+          type: string
+          format: date
+          description: Customer's date of birth
+          example: "1990-05-15"
+        gender:
+          type: string
+          enum: [male, female, other, prefer_not_to_say]
+          description: Customer's gender
+          example: "female"
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+              maxLength: 100
+              example: "123 Main St"
+            city:
+              type: string
+              maxLength: 50
+              example: "New York"
+            state:
+              type: string
+              maxLength: 50
+              example: "NY"
+            zipCode:
+              type: string
+              maxLength: 20
+              example: "10001"
+            country:
+              type: string
+              maxLength: 50
+              example: "United States"
+        preferences:
+          type: object
+          properties:
+            preferredTechnician:
+              type: string
+              description: ID of preferred technician
+              example: "691bf2c5779a3bff78c776e8"
+            allergies:
+              type: array
+              items:
+                type: string
+              example: ["latex", "shellfish"]
+            notes:
+              type: string
+              maxLength: 500
+              example: "Prefers morning appointments"
+        isActive:
+          type: boolean
+          description: Whether the customer is active
+          example: true
+      description: All fields are optional for updates
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: Current page number
+          example: 1
+        limit:
+          type: integer
+          description: Items per page
+          example: 10
+        total:
+          type: integer
+          description: Total number of items
+          example: 25
+        pages:
+          type: integer
+          description: Total number of pages
+          example: 3
+
+    # Technician Schemas
+    Technician:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique technician identifier
+          example: "691bf2c5779a3bff78c776e8"
+        firstName:
+          type: string
+          description: Technician's first name
+          example: "Emily"
+        lastName:
+          type: string
+          description: Technician's last name
+          example: "Chen"
+        email:
+          type: string
+          format: email
+          description: Technician's email address
+          example: "emily.chen@hanasalon.com"
+        phone:
+          type: string
+          description: Technician's phone number
+          example: "+1234567891"
+        employeeId:
+          type: string
+          description: Unique employee identifier
+          example: "EMP001"
+        specialties:
+          type: array
+          items:
+            type: string
+            enum: [Manicure, Pedicure, Nail Art, Gel Polish, Acrylic Nails, Dip Powder, Nail Extensions, Nail Repair, Cuticle Care, Hand Massage, Foot Massage]
+          description: Technician's specialties
+          example: ["Manicure", "Nail Art", "Gel Polish"]
+        skillLevel:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Technician's skill level
+          example: "Senior"
+        certifications:
+          type: array
+          items:
+            type: string
+          description: Professional certifications
+          example: ["Certified Nail Technician", "Advanced Nail Art"]
+        yearsOfExperience:
+          type: integer
+          minimum: 0
+          maximum: 50
+          description: Years of experience
+          example: 5
+        hourlyRate:
+          type: number
+          minimum: 10
+          maximum: 200
+          description: Hourly rate in USD
+          example: 45.00
+        availability:
+          $ref: '#/components/schemas/TechnicianAvailability'
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+          description: Average customer rating
+          example: 4.8
+        totalBookings:
+          type: integer
+          minimum: 0
+          description: Total number of bookings
+          example: 150
+        completedBookings:
+          type: integer
+          minimum: 0
+          description: Number of completed bookings
+          example: 142
+        isActive:
+          type: boolean
+          description: Whether the technician is active
+          example: true
+        hireDate:
+          type: string
+          format: date
+          description: Date when technician was hired
+          example: "2022-03-15"
+        created_at:
+          type: string
+          format: date-time
+          description: Technician creation timestamp
+          example: "2023-11-18T00:15:00.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Technician last update timestamp
+          example: "2023-11-18T00:15:00.000Z"
+
+    TechnicianInput:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - email
+        - phone
+        - employeeId
+        - specialties
+        - skillLevel
+        - yearsOfExperience
+        - hourlyRate
+        - hireDate
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+          description: Technician's first name
+          example: "Emily"
+        lastName:
+          type: string
+          maxLength: 50
+          description: Technician's last name
+          example: "Chen"
+        email:
+          type: string
+          format: email
+          description: Technician's email address
+          example: "emily.chen@hanasalon.com"
+        phone:
+          type: string
+          pattern: "^[\\+]?[1-9][\\d]{0,15}$"
+          description: Technician's phone number
+          example: "+1234567891"
+        employeeId:
+          type: string
+          description: Unique employee identifier
+          example: "EMP001"
+        specialties:
+          type: array
+          items:
+            type: string
+            enum: [Manicure, Pedicure, Nail Art, Gel Polish, Acrylic Nails, Dip Powder, Nail Extensions, Nail Repair, Cuticle Care, Hand Massage, Foot Massage]
+          minItems: 1
+          description: Technician's specialties
+          example: ["Manicure", "Nail Art", "Gel Polish"]
+        skillLevel:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Technician's skill level
+          example: "Senior"
+        certifications:
+          type: array
+          items:
+            type: string
+          description: Professional certifications
+          example: ["Certified Nail Technician", "Advanced Nail Art"]
+        yearsOfExperience:
+          type: integer
+          minimum: 0
+          maximum: 50
+          description: Years of experience
+          example: 5
+        hourlyRate:
+          type: number
+          minimum: 10
+          maximum: 200
+          description: Hourly rate in USD
+          example: 45.00
+        availability:
+          $ref: '#/components/schemas/TechnicianAvailability'
+        hireDate:
+          type: string
+          format: date
+          description: Date when technician was hired
+          example: "2022-03-15"
+
+    TechnicianUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+          maxLength: 50
+          description: Technician's first name
+          example: "Emily"
+        lastName:
+          type: string
+          maxLength: 50
+          description: Technician's last name
+          example: "Chen"
+        email:
+          type: string
+          format: email
+          description: Technician's email address
+          example: "emily.chen@hanasalon.com"
+        phone:
+          type: string
+          pattern: "^[\\+]?[1-9][\\d]{0,15}$"
+          description: Technician's phone number
+          example: "+1234567891"
+        specialties:
+          type: array
+          items:
+            type: string
+            enum: [Manicure, Pedicure, Nail Art, Gel Polish, Acrylic Nails, Dip Powder, Nail Extensions, Nail Repair, Cuticle Care, Hand Massage, Foot Massage]
+          description: Technician's specialties
+          example: ["Manicure", "Nail Art", "Gel Polish"]
+        skillLevel:
+          type: string
+          enum: [Junior, Senior, Expert, Master]
+          description: Technician's skill level
+          example: "Senior"
+        certifications:
+          type: array
+          items:
+            type: string
+          description: Professional certifications
+          example: ["Certified Nail Technician", "Advanced Nail Art"]
+        yearsOfExperience:
+          type: integer
+          minimum: 0
+          maximum: 50
+          description: Years of experience
+          example: 5
+        hourlyRate:
+          type: number
+          minimum: 10
+          maximum: 200
+          description: Hourly rate in USD
+          example: 45.00
+        availability:
+          $ref: '#/components/schemas/TechnicianAvailability'
+        isActive:
+          type: boolean
+          description: Whether the technician is active
+          example: true
+      description: All fields are optional for updates
+
+    TechnicianAvailability:
+      type: object
+      properties:
+        monday:
+          $ref: '#/components/schemas/DayAvailability'
+        tuesday:
+          $ref: '#/components/schemas/DayAvailability'
+        wednesday:
+          $ref: '#/components/schemas/DayAvailability'
+        thursday:
+          $ref: '#/components/schemas/DayAvailability'
+        friday:
+          $ref: '#/components/schemas/DayAvailability'
+        saturday:
+          $ref: '#/components/schemas/DayAvailability'
+        sunday:
+          $ref: '#/components/schemas/DayAvailability'
+
+    DayAvailability:
+      type: object
+      properties:
+        start:
+          type: string
+          pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          description: Start time in HH:MM format
+          example: "09:00"
+        end:
+          type: string
+          pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          description: End time in HH:MM format
+          example: "17:00"
+        available:
+          type: boolean
+          description: Whether available on this day
+          example: true
+
   responses:
     BadRequest:
       description: Bad Request
