@@ -1,0 +1,179 @@
+HANA AI NAIL SALON BOOKING SYSTEM - ASCII FLOWCHART
+====================================================
+
+                        +---------------+
+                        |     START     |
+                        +-------+-------+
+                                |
+                                v
+                        +---------------+
+                        | User Input:   |
+                        | "Book gel     |
+                        | manicure..."  |
+                        +-------+-------+
+                                |
+                                v
+    +-----------------------------------------------------------+
+    |                    NODE 1                                |
+    |              NAIL BOOKING VALIDATION                     |
+    |                                                          |
+    |  Input: booking_request                                  |
+    |  Process:                                                |
+    |    - Parse customer name                                 |
+    |    - Extract nail service type                           |
+    |    - Parse date (YYYY-MM-DD)                            |
+    |    - Parse time (HH:MM)                                 |
+    |    - Validate completeness                               |
+    |  Output: Updated BookingState                            |
+    +-------------------------+---------------------------------+
+                              |
+                              v
+                    +---------+---------+
+                    |   Validation      |
+                    |   Status Check    |
+                    +---------+---------+
+                              |
+                +-------------+-------------+
+                |                           |
+                v                           v
+        +-------+-------+           +-------+-------+
+        |     VALID     |           |    INVALID    |
+        +-------+-------+           +-------+-------+
+                |                           |
+                v                           |
+    +-----------------------------------------------------------+
+    |                    NODE 2                                |
+    |              NAIL BOOKING CONFIRMATION                   |
+    |                                                          |
+    |  Input: Validated BookingState                           |
+    |  Process:                                                |
+    |    - Generate confirmation ID (NAIL-timestamp)          |
+    |    - Create professional message                         |
+    |    - Add nail care preparation tips                      |
+    |    - Handle invalid bookings                             |
+    |  Output: Final confirmation response                     |
+    +-------------------------+---------------------------------+
+                              |
+                              v
+                    +---------+---------+
+                    |   Final Response  |
+                    |   Generation      |
+                    +---------+---------+
+                              |
+                              v
+                        +-----+-----+
+                        |    END    |
+                        +-----------+
+
+====================================================
+
+DETAILED ASCII FLOW WITH DATA:
+
+Input: "Hi, I'm Emma Watson, book gel manicure Dec 15th 2:30 PM"
+                              |
+                              v
++-------------------------------------------------------------+
+| NODE 1: VALIDATION                                          |
+|                                                             |
+| AI Processing:                                              |
+| customer_name: "" ---------> "Emma Watson"                 |
+| service_type: ""  ---------> "Gel Manicure"               |
+| date: ""          ---------> "2024-12-15"                 |
+| time: ""          ---------> "14:30"                      |
+| validation_status: "" -----> "VALID"                      |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+| NODE 2: CONFIRMATION                                        |
+|                                                             |
+| Processing:                                                 |
+| confirmation_id: "" -------> "NAIL-20251117014652"        |
+| final_response: "" --------> "Professional message with   |
+|                              nail care tips..."           |
++-------------------------------------------------------------+
+                              |
+                              v
+Output: "Booking Confirmation for Emma Watson..."
+
+====================================================
+
+STATE FLOW DIAGRAM:
+
+BookingState:
++------------------+    +------------------+    +------------------+
+|   INITIAL        |    |   AFTER NODE 1   |    |   AFTER NODE 2   |
+|                  |    |                  |    |                  |
+| messages: []     |--->| messages: [msg1] |--->| messages: [msg1, |
+| booking_request: |    | booking_request: |    |           msg2]  |
+|   "user input"   |    |   "user input"   |    | booking_request: |
+| customer_name:""  |    | customer_name:   |    |   "user input"   |
+| service_type: "" |    |   "Emma Watson"  |    | customer_name:   |
+| date: ""         |    | service_type:    |    |   "Emma Watson"  |
+| time: ""         |    |   "Gel Manicure" |    | service_type:    |
+| validation_      |    | date:"2024-12-15"|    |   "Gel Manicure" |
+|   status: ""     |    | time: "14:30"    |    | date:"2024-12-15"|
+| confirmation_    |    | validation_      |    | time: "14:30"    |
+|   id: ""         |    |   status:"VALID" |    | validation_      |
+| final_response:  |    | confirmation_    |    |   status:"VALID" |
+|   ""             |    |   id: ""         |    | confirmation_    |
++------------------+    | final_response:  |    |   id: "NAIL-..." |
+                        |   ""             |    | final_response:  |
+                        +------------------+    |   "Confirmation  |
+                                                |    message..."   |
+                                                +------------------+
+
+====================================================
+
+ERROR HANDLING FLOW:
+
+Input: "Book pedicure for Lisa"  (Missing date/time)
+                |
+                v
++---------------+---------------+
+|        NODE 1 VALIDATION     |
+| Result: "INVALID - Missing   |
+|         date and time"       |
++---------------+---------------+
+                |
+                v
++---------------+---------------+
+|        NODE 2 CONFIRMATION   |
+| Process: Generate error msg  |
+| Output: "Booking could not   |
+|         be processed..."     |
++---------------+---------------+
+                |
+                v
+        Error Response
+
+====================================================
+
+SUPPORTED SERVICES ASCII TREE:
+
+Nail Services
+|
++-- Basic Services
+|   +-- Manicure
+|   +-- Pedicure
+|
++-- Advanced Services
+|   +-- Gel Manicure
+|   +-- Gel Pedicure
+|   +-- Acrylic Nails
+|   +-- Nail Extensions
+|
++-- Specialty Services
+    +-- Nail Art/Design
+    +-- French Manicure
+    +-- Dip Powder Nails
+
+====================================================
+
+WORKFLOW CHARACTERISTICS:
+* Linear flow: START -> NODE1 -> NODE2 -> END
+* State preservation between nodes
+* AI-powered natural language processing
+* Error handling at each stage
+* Professional nail salon messaging
+* Unique ID generation with NAIL- prefix

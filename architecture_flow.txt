@@ -1,0 +1,260 @@
+HANA AI NAIL SALON BOOKING SYSTEM - 3-COMPONENT ARCHITECTURE FLOW
+====================================================================
+
+                    +-------------------+
+                    |     FRONTEND      |
+                    |                   |
+                    |  +-------------+  |
+                    |  |  Web App    |  |
+                    |  | (React/Next)|  |
+                    |  +-------------+  |
+                    |                   |
+                    |  +-------------+  |
+                    |  | Mobile App  |  |
+                    |  |(React Native)|  |
+                    |  +-------------+  |
+                    +--------+----------+
+                             |
+                             | HTTP/HTTPS
+                             | REST API Calls
+                             |
+                             v
+                    +--------+----------+
+                    |     BACKEND       |
+                    |                   |
+                    | Node.js + Express |
+                    |   + TypeScript    |
+                    |                   |
+                    | Port: 3060        |
+                    |                   |
+                    | Routes:           |
+                    | /api/health       |
+                    | /api/bookings/*   |
+                    +--------+----------+
+                             |
+                             | HTTP Requests
+                             | JSON Payload
+                             |
+                             v
+                    +--------+----------+
+                    |   AI SERVICE      |
+                    |                   |
+                    |  Python + FastAPI |
+                    |   + Langraph      |
+                    |                   |
+                    | Port: 8060        |
+                    |                   |
+                    | 2-Node Workflow:  |
+                    | Node1: Validation |
+                    | Node2: Confirm    |
+                    +-------------------+
+
+====================================================================
+
+DETAILED COMPONENT INTERACTION FLOW:
+
+1. USER INTERACTION:
+   +----------+    User Input    +----------+
+   |   User   | --------------> | Frontend |
+   +----------+   "Book nail    +----------+
+                   service"
+
+2. FRONTEND TO BACKEND:
+   +----------+    HTTP POST     +----------+
+   | Frontend | --------------> | Backend  |
+   +----------+  /api/bookings  +----------+
+                 /process
+                 {
+                   "booking_request": 
+                   "Emma wants gel manicure..."
+                 }
+
+3. BACKEND TO AI SERVICE:
+   +----------+    HTTP POST     +------------+
+   | Backend  | --------------> | AI Service |
+   +----------+  /process-      +------------+
+                 booking
+                 {
+                   "booking_request": 
+                   "Emma wants gel manicure..."
+                 }
+
+4. AI SERVICE PROCESSING:
+   +------------+
+   | AI Service |
+   +------------+
+        |
+        v
+   +-----------+     +-----------+
+   |  Node 1   |---->|  Node 2   |
+   |Validation |     |Confirmation|
+   +-----------+     +-----------+
+        |                 |
+        v                 v
+   Extract Info      Generate ID
+   Validate Data     Create Message
+
+5. RESPONSE FLOW:
+   +------------+    JSON Result   +----------+
+   | AI Service | --------------> | Backend  |
+   +------------+                 +----------+
+   {                                   |
+     "customer_name": "Emma",          |
+     "service_type": "Gel Manicure",   |
+     "confirmation_id": "NAIL-123",    |
+     "final_response": "Confirmed..."  |
+   }                                   |
+                                       v
+                              +----------+
+                              | Frontend |
+                              +----------+
+                                   |
+                                   v
+                              +----------+
+                              |   User   |
+                              +----------+
+
+====================================================================
+
+SERVICE COMMUNICATION DETAILS:
+
+FRONTEND (Port 3001)
+├─ Web App (React/Next.js)
+│  ├─ Booking Form Component
+│  ├─ Service Selection
+│  └─ Confirmation Display
+└─ Mobile App (React Native)
+   ├─ Native UI Components
+   ├─ API Integration
+   └─ Push Notifications
+
+        |
+        | REST API Calls
+        | Content-Type: application/json
+        |
+        v
+
+BACKEND (Port 3060)
+├─ Express Server (TypeScript)
+├─ Routes
+│  ├─ /api/health
+│  ├─ /api/bookings/process
+│  ├─ /api/bookings/validate
+│  ├─ /api/bookings/services
+│  └─ /api/bookings/status/:id
+├─ Controllers
+│  └─ bookingController.ts
+├─ Services
+│  └─ aiService.ts
+└─ Middleware
+   ├─ CORS
+   ├─ Rate Limiting
+   ├─ Validation
+   └─ Error Handling
+
+        |
+        | HTTP Client (Axios)
+        | Timeout: 30s
+        |
+        v
+
+AI SERVICE (Port 8060)
+├─ FastAPI Server (Python)
+├─ Langraph Workflow
+│  ├─ Node 1: booking_validation_node
+│  └─ Node 2: booking_confirmation_node
+├─ State Management
+│  └─ BookingState (TypedDict)
+└─ OpenAI Integration
+   └─ GPT-3.5-turbo
+
+====================================================================
+
+DATA FLOW EXAMPLE:
+
+Input: "Hi, I'm Emma and I want gel manicure Dec 15th 2:30 PM"
+
+Frontend ──┐
+           │ POST /api/bookings/process
+           │ { "booking_request": "Hi, I'm Emma..." }
+           │
+           v
+Backend ───┐
+           │ POST /process-booking  
+           │ { "booking_request": "Hi, I'm Emma..." }
+           │
+           v
+AI Service │
+           │ Langraph Processing:
+           │ Node1: Extract → customer_name: "Emma"
+           │                  service_type: "Gel Manicure"  
+           │                  date: "2024-12-15"
+           │                  time: "14:30"
+           │ Node2: Generate → confirmation_id: "NAIL-123"
+           │                   final_response: "Dear Emma..."
+           │
+           │ Response:
+           │ {
+           │   "customer_name": "Emma",
+           │   "service_type": "Gel Manicure", 
+           │   "date": "2024-12-15",
+           │   "time": "14:30",
+           │   "confirmation_id": "NAIL-123",
+           │   "final_response": "Dear Emma, confirmed..."
+           │ }
+           │
+Backend ←──┘
+           │ Store booking + Add booking_id
+           │ {
+           │   "success": true,
+           │   "booking_id": "uuid-456",
+           │   "customer_name": "Emma",
+           │   ...
+           │ }
+           │
+Frontend ←─┘
+           │ Display confirmation to user
+           │
+User ←─────┘
+
+====================================================================
+
+ERROR HANDLING FLOW:
+
+Frontend ──┐ Invalid Request
+           │ 
+           v
+Backend ───┐ Validation Error (400)
+           │ OR
+           │ AI Service Down (500)
+           │ OR  
+           │ Timeout (504)
+           │
+           v
+Frontend ←─┘ Display Error Message
+           │
+User ←─────┘ "Please try again"
+
+====================================================================
+
+TECHNOLOGY STACK:
+
+Frontend:
+- React.js / Next.js (Web)
+- React Native (Mobile)
+- Axios (HTTP Client)
+- TypeScript
+
+Backend:
+- Node.js + Express
+- TypeScript
+- Axios (AI Service Client)
+- Express-validator
+- CORS, Helmet, Rate Limiting
+
+AI Service:
+- Python 3.8+
+- FastAPI
+- Langraph
+- OpenAI API
+- Pydantic
