@@ -21,18 +21,17 @@ router.get('/', (req: Request, res: Response) => {
     message: 'Hana AI Backend API',
     data: {
       version: '1.0.0',
+      status: 'running',
+      timestamp: new Date().toISOString(),
       endpoints: {
         health: '/api/health',
-        ready: '/api/ready',
-        live: '/api/live',
         services: '/api/services',
         customers: '/api/customers',
         technicians: '/api/technicians',
         bookings: '/api/bookings',
         documentation: '/api-docs'
       }
-    },
-    timestamp: new Date().toISOString()
+    }
   });
 });
 

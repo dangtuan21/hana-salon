@@ -33,7 +33,7 @@ export const getAllBookings = asyncHandler(async (req: Request, res: Response): 
     
     // Filter by technician ID
     if (req.query.technicianId) {
-      filter.technicianId = req.query.technicianId;
+      filter['services.technicianId'] = req.query.technicianId;
     }
     
     // Filter by date range
@@ -48,10 +48,10 @@ export const getAllBookings = asyncHandler(async (req: Request, res: Response): 
     }
 
     const bookings = await Booking.find(filter)
-      .populate('customerId', 'firstName lastName email phone')
-      .populate('technicianId', 'firstName lastName employeeId specialties')
-      .populate('serviceIds', 'name category duration_minutes price')
-      .sort({ appointmentDate: -1, startTime: 1 })
+      .populate('customerId', 'firstName lastName email')
+      .populate('services.technicianId', 'firstName lastName employeeId')
+      .populate('services.serviceId', 'name price duration_minutes')
+      .sort({ created_at: -1 })
       .skip(skip)
       .limit(limit)
       .select('-__v');

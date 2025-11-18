@@ -754,6 +754,174 @@ components:
           description: Whether available on this day
           example: true
 
+    # Booking Schemas
+    Booking:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Unique booking identifier
+          example: "691bf2c5779a3bff78c776e9"
+        customer:
+          $ref: '#/components/schemas/Customer'
+        technician:
+          $ref: '#/components/schemas/Technician'
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/Service'
+          description: List of services booked
+        appointmentDateTime:
+          type: string
+          format: date-time
+          description: Scheduled appointment date and time
+          example: "2023-12-01T14:30:00.000Z"
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          description: Total duration in minutes
+          example: 90
+        status:
+          type: string
+          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+          description: Current booking status
+          example: "confirmed"
+        totalAmount:
+          type: number
+          minimum: 0
+          description: Total booking amount
+          example: 85.50
+        paymentStatus:
+          type: string
+          enum: [pending, paid, refunded, failed]
+          description: Payment status
+          example: "paid"
+        paymentMethod:
+          type: string
+          enum: [cash, card, online, gift_card]
+          description: Payment method used
+          example: "card"
+        notes:
+          type: string
+          description: Special notes or requests
+          example: "Customer prefers gel polish"
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+          description: Customer rating (1-5 stars)
+          example: 4.5
+        feedback:
+          type: string
+          description: Customer feedback
+          example: "Excellent service!"
+        created_at:
+          type: string
+          format: date-time
+          description: Booking creation timestamp
+          example: "2023-11-18T00:15:00.000Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Booking last update timestamp
+          example: "2023-11-18T00:15:00.000Z"
+
+    BookingInput:
+      type: object
+      required:
+        - customer
+        - technician
+        - services
+        - appointmentDateTime
+      properties:
+        customer:
+          type: string
+          description: Customer ID
+          example: "691bf2c5779a3bff78c776e7"
+        technician:
+          type: string
+          description: Technician ID
+          example: "691bf2c5779a3bff78c776e8"
+        services:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Array of service IDs
+          example: ["691bf2c5779a3bff78c776ea", "691bf2c5779a3bff78c776eb"]
+        appointmentDateTime:
+          type: string
+          format: date-time
+          description: Scheduled appointment date and time
+          example: "2023-12-01T14:30:00.000Z"
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          description: Total duration in minutes (auto-calculated if not provided)
+          example: 90
+        paymentMethod:
+          type: string
+          enum: [cash, card, online, gift_card]
+          description: Payment method
+          example: "card"
+        notes:
+          type: string
+          maxLength: 500
+          description: Special notes or requests
+          example: "Customer prefers gel polish"
+
+    BookingUpdate:
+      type: object
+      properties:
+        customer:
+          type: string
+          description: Customer ID
+          example: "691bf2c5779a3bff78c776e7"
+        technician:
+          type: string
+          description: Technician ID
+          example: "691bf2c5779a3bff78c776e8"
+        services:
+          type: array
+          items:
+            type: string
+          description: Array of service IDs
+          example: ["691bf2c5779a3bff78c776ea", "691bf2c5779a3bff78c776eb"]
+        appointmentDateTime:
+          type: string
+          format: date-time
+          description: Scheduled appointment date and time
+          example: "2023-12-01T14:30:00.000Z"
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          description: Total duration in minutes
+          example: 90
+        status:
+          type: string
+          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+          description: Booking status
+          example: "confirmed"
+        paymentStatus:
+          type: string
+          enum: [pending, paid, refunded, failed]
+          description: Payment status
+          example: "paid"
+        paymentMethod:
+          type: string
+          enum: [cash, card, online, gift_card]
+          description: Payment method
+          example: "card"
+        notes:
+          type: string
+          maxLength: 500
+          description: Special notes or requests
+          example: "Customer prefers gel polish"
+      description: All fields are optional for updates
+
   responses:
     BadRequest:
       description: Bad Request

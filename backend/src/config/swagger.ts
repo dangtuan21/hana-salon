@@ -50,6 +50,10 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'Technicians',
       description: 'Technician management endpoints'
+    },
+    {
+      name: 'Bookings',
+      description: 'Booking management endpoints'
     }
   ]
 };

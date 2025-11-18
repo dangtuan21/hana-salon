@@ -1,22 +1,30 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+// Service-Technician pair interface
+export interface IServiceTechnicianPair {
+  serviceId: mongoose.Types.ObjectId;
+  technicianId: mongoose.Types.ObjectId;
+  duration: number; // Duration for this specific service
+  price: number; // Price for this specific service
+  status?: 'scheduled' | 'in_progress' | 'completed';
+  notes?: string; // Service-specific notes
+}
+
 // Booking interface
 export interface IBooking extends Document {
   _id: mongoose.Types.ObjectId;
   customerId: mongoose.Types.ObjectId;
-  technicianId: mongoose.Types.ObjectId;
-  serviceIds: mongoose.Types.ObjectId[];
+  services: IServiceTechnicianPair[]; // Array of service-technician pairs
   appointmentDate: Date;
   startTime: string;
   endTime: string;
   status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
-  totalDuration: number;
-  totalPrice: number;
+  totalDuration: number; // Sum of all service durations
+  totalPrice: number; // Sum of all service prices
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
   paymentMethod?: 'cash' | 'card' | 'online' | 'gift_card';
-  notes?: string;
+  notes?: string; // General booking notes
   customerNotes?: string;
-  technicianNotes?: string;
   cancellationReason?: string;
   reminderSent: boolean;
   confirmationSent: boolean;
@@ -29,6 +37,39 @@ export interface IBooking extends Document {
   updated_at: Date;
 }
 
+// Service-Technician pair schema
+const ServiceTechnicianPairSchema = new Schema<IServiceTechnicianPair>({
+  serviceId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Service',
+    required: [true, 'Service ID is required']
+  },
+  technicianId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Technician',
+    required: [true, 'Technician ID is required']
+  },
+  duration: {
+    type: Number,
+    required: [true, 'Service duration is required'],
+    min: [1, 'Duration must be at least 1 minute']
+  },
+  price: {
+    type: Number,
+    required: [true, 'Service price is required'],
+    min: [0, 'Price cannot be negative']
+  },
+  status: {
+    type: String,
+    enum: ['scheduled', 'in_progress', 'completed'],
+    default: 'scheduled'
+  },
+  notes: {
+    type: String,
+    maxlength: [500, 'Service notes cannot exceed 500 characters']
+  }
+}, { _id: false }); // Don't create separate _id for subdocuments
+
 // Booking schema
 const BookingSchema = new Schema<IBooking>({
   customerId: {
@@ -36,16 +77,16 @@ const BookingSchema = new Schema<IBooking>({
     ref: 'Customer',
     required: [true, 'Customer ID is required']
   },
-  technicianId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Technician',
-    required: [true, 'Technician ID is required']
+  services: {
+    type: [ServiceTechnicianPairSchema],
+    required: [true, 'At least one service is required'],
+    validate: {
+      validator: function(services: IServiceTechnicianPair[]) {
+        return services.length > 0;
+      },
+      message: 'At least one service must be provided'
+    }
   },
-  serviceIds: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Service',
-    required: [true, 'At least one service is required']
-  }],
   appointmentDate: {
     type: Date,
     required: [true, 'Appointment date is required'],
@@ -105,11 +146,6 @@ const BookingSchema = new Schema<IBooking>({
     trim: true,
     maxlength: [300, 'Customer notes cannot exceed 300 characters']
   },
-  technicianNotes: {
-    type: String,
-    trim: true,
-    maxlength: [300, 'Technician notes cannot exceed 300 characters']
-  },
   cancellationReason: {
     type: String,
     trim: true,
@@ -153,11 +189,12 @@ const BookingSchema = new Schema<IBooking>({
 
 // Indexes for better query performance
 BookingSchema.index({ customerId: 1 });
-BookingSchema.index({ technicianId: 1 });
+BookingSchema.index({ 'services.technicianId': 1 }); // Index for technician queries
+BookingSchema.index({ 'services.serviceId': 1 }); // Index for service queries
 BookingSchema.index({ appointmentDate: 1 });
 BookingSchema.index({ status: 1 });
 BookingSchema.index({ paymentStatus: 1 });
-BookingSchema.index({ appointmentDate: 1, technicianId: 1 }); // Compound index for scheduling
+BookingSchema.index({ appointmentDate: 1, 'services.technicianId': 1 }); // Compound index for scheduling
 BookingSchema.index({ created_at: -1 });
 
 // Virtual for appointment datetime
