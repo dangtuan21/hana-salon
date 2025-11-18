@@ -3,6 +3,10 @@ import compression from 'compression';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import https from 'https';
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from '@/config/swagger';
 import { corsOptions, helmetConfig, createRateLimiter } from '@/middleware/security';
@@ -15,9 +19,11 @@ import database from '@/config/database';
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3060', 10);
+const PORT = parseInt(process.env.PORT || '8060', 10);
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || '8443', 10);
 const HOST = process.env.HOST || 'localhost';
 const API_PREFIX = process.env.API_PREFIX || '/api';
+const ENABLE_HTTPS = process.env.ENABLE_HTTPS === 'true' || process.env.NODE_ENV === 'production';
 
 // Trust proxy for rate limiting and IP detection
 app.set('trust proxy', 1);
@@ -76,36 +82,86 @@ app.get('/', (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// SSL Certificate paths
+const getSSLOptions = () => {
+  const certPath = path.join(__dirname, '..', 'ssl', 'certificate.pem');
+  const keyPath = path.join(__dirname, '..', 'ssl', 'private-key.pem');
+  
+  try {
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      return {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath)
+      };
+    }
+  } catch (error) {
+    logger.warn('SSL certificates not found or invalid:', error);
+  }
+  
+  return null;
+};
+
 // Initialize database connection and start server
 const startServer = async (): Promise<void> => {
   try {
     // Connect to MongoDB
     await database.connect();
     
-    // Start the server
-    const server = app.listen(PORT, HOST, () => {
-      logger.info(`🚀 Server running on http://${HOST}:${PORT}`);
-      logger.info(`📚 API documentation available at http://${HOST}:${PORT}${API_PREFIX}`);
-      logger.info(`📖 Swagger UI: http://${HOST}:${PORT}/api-docs`);
-      logger.info(`🏥 Health check: http://${HOST}:${PORT}${API_PREFIX}/health`);
-      logger.info(`🗄️  Services API: http://${HOST}:${PORT}${API_PREFIX}/services`);
-      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    const servers: any[] = [];
+    
+    // Start HTTP server
+    const httpServer = http.createServer(app);
+    httpServer.listen(PORT, () => {
+      logger.info(`🚀 HTTP Server running on http://localhost:${PORT}`);
+      logger.info(`📚 API documentation available at http://localhost:${PORT}${API_PREFIX}`);
+      logger.info(`📖 Swagger UI: http://localhost:${PORT}/api-docs`);
+      logger.info(`🏥 Health check: http://localhost:${PORT}${API_PREFIX}/health`);
+      logger.info(`🗄️  Services API: http://localhost:${PORT}${API_PREFIX}/services`);
     });
+    servers.push(httpServer);
+
+    // Start HTTPS server if enabled and certificates are available
+    if (ENABLE_HTTPS) {
+      const sslOptions = getSSLOptions();
+      
+      if (sslOptions) {
+        const httpsServer = https.createServer(sslOptions, app);
+        httpsServer.listen(HTTPS_PORT, () => {
+          logger.info(`🔒 HTTPS Server running on https://localhost:${HTTPS_PORT}`);
+          logger.info(`📚 Secure API documentation available at https://localhost:${HTTPS_PORT}${API_PREFIX}`);
+          logger.info(`📖 Secure Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
+        });
+        servers.push(httpsServer);
+      } else {
+        logger.warn('⚠️  HTTPS enabled but SSL certificates not found. Running HTTP only.');
+        logger.info('💡 To enable HTTPS, ensure ssl/certificate.pem and ssl/private-key.pem exist');
+      }
+    }
+
+    logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔐 HTTPS: ${ENABLE_HTTPS ? 'Enabled' : 'Disabled'}`);
 
     // Graceful shutdown handling
     const gracefulShutdown = async (signal: string): Promise<void> => {
       logger.info(`${signal} received, shutting down gracefully`);
       
-      server.close(async () => {
-        try {
-          await database.disconnect();
-          logger.info('Process terminated');
-          process.exit(0);
-        } catch (error) {
-          logger.error('Error during shutdown:', error);
-          process.exit(1);
-        }
-      });
+      // Close all servers
+      const shutdownPromises = servers.map(server => 
+        new Promise<void>((resolve) => {
+          server.close(() => resolve());
+        })
+      );
+      
+      await Promise.all(shutdownPromises);
+      
+      try {
+        await database.disconnect();
+        logger.info('Process terminated');
+        process.exit(0);
+      } catch (error) {
+        logger.error('Error during shutdown:', error);
+        process.exit(1);
+      }
     };
 
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

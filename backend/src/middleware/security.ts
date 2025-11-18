@@ -23,7 +23,13 @@ export const createRateLimiter = () => {
 export const corsOptions = {
   origin: process.env.CORS_ORIGIN ? 
     process.env.CORS_ORIGIN.split(',') : 
-    ['http://localhost:3000', 'http://localhost:8060', 'http://127.0.0.1:8060'],
+    [
+      'http://localhost:3000', 
+      'http://localhost:8060', 
+      'http://127.0.0.1:8060',
+      'https://localhost:8443',
+      'https://127.0.0.1:8443'
+    ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
@@ -36,15 +42,21 @@ export const helmetConfig = helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts for Swagger UI
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://localhost:8443", "http://localhost:8060"], // Allow API calls
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
     },
   },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true
-  }
+  },
+  crossOriginEmbedderPolicy: false // Disable for Swagger UI compatibility
 });
 
 // Request logging middleware

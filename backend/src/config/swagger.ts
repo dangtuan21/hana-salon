@@ -19,7 +19,11 @@ const swaggerDefinition: SwaggerDefinition = {
   servers: [
     {
       url: 'http://localhost:8060',
-      description: 'Development server'
+      description: 'Development HTTP server'
+    },
+    {
+      url: 'https://localhost:8443',
+      description: 'Development HTTPS server (self-signed certificate)'
     },
     {
       url: 'https://api.hana-ai.com',

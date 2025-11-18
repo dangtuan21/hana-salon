@@ -15,6 +15,13 @@ build/
 .env.test.local
 .env.production.local
 
+# SSL Certificates (keep private keys secure)
+ssl/
+*.pem
+*.key
+*.crt
+*.csr
+
 # Logs
 logs/
 *.log
