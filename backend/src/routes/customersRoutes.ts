@@ -5,7 +5,8 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
-  reactivateCustomer
+  reactivateCustomer,
+  getCustomerByPhone
 } from '@/controllers/customersController';
 
 const router = Router();
@@ -13,6 +14,7 @@ const router = Router();
 // Customer CRUD routes
 router.get('/', getAllCustomers);                    // GET /api/customers - Read all
 router.post('/', createCustomer);                    // POST /api/customers - Create
+router.get('/phone/:phone', getCustomerByPhone);     // GET /api/customers/phone/:phone - Get by phone (for AI)
 router.get('/:id', getCustomerById);                 // GET /api/customers/:id - Read one
 router.put('/:id', updateCustomer);                  // PUT /api/customers/:id - Update
 router.delete('/:id', deleteCustomer);               // DELETE /api/customers/:id - Soft delete

@@ -4,7 +4,8 @@ import {
   getServiceById,
   createService,
   updateService,
-  deleteService
+  deleteService,
+  getServiceByName
 } from '@/controllers/servicesController';
 
 const router = Router();
@@ -12,6 +13,7 @@ const router = Router();
 // Services CRUD routes
 router.get('/', getAllServices);          // GET /api/services - Read all
 router.post('/', createService);          // POST /api/services - Create
+router.get('/name/:name', getServiceByName); // GET /api/services/name/:name - Get by name (for AI)
 router.get('/:id', getServiceById);       // GET /api/services/:id - Read one
 router.put('/:id', updateService);        // PUT /api/services/:id - Update
 router.delete('/:id', deleteService);     // DELETE /api/services/:id - Delete

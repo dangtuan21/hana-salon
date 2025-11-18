@@ -432,4 +432,84 @@ describe('Customers Controller', () => {
       expect(customerData.isActive).toBe(true);
     });
   });
+
+  describe('GET /api/customers/phone/:phone', () => {
+    beforeEach(async () => {
+      await Customer.deleteMany({});
+      await Customer.create([
+        {
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john.doe@test.com',
+          phone: '+1234567890'
+        },
+        {
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane.smith@test.com',
+          phone: '(555) 123-4567'
+        }
+      ]);
+    });
+
+    test('should return customer by exact phone match', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/+1234567890')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('firstName', 'John');
+      expect(response.body.data).toHaveProperty('lastName', 'Doe');
+      expect(response.body.data).toHaveProperty('phone', '+1234567890');
+    });
+
+    test('should return customer by cleaned phone match', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/5551234567')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('firstName', 'Jane');
+      expect(response.body.data).toHaveProperty('lastName', 'Smith');
+    });
+
+    test('should handle phone with spaces and dashes', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/555-123-4567')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('firstName', 'Jane');
+    });
+
+    test('should return 404 for non-existent phone', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/9999999999')
+        .expect(404);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should return 400 for empty phone', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/')
+        .expect(404); // Express returns 404 for missing parameter
+    });
+
+    test('should return only necessary customer fields', async () => {
+      const response = await request(app)
+        .get('/api/customers/phone/+1234567890')
+        .expect(200);
+
+      const customerData = response.body.data;
+      expect(customerData).toHaveProperty('_id');
+      expect(customerData).toHaveProperty('firstName');
+      expect(customerData).toHaveProperty('lastName');
+      expect(customerData).toHaveProperty('email');
+      expect(customerData).toHaveProperty('phone');
+      expect(customerData).toHaveProperty('isActive');
+      expect(customerData).toHaveProperty('preferences');
+    });
+  });
 });

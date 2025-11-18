@@ -336,3 +336,127 @@ export const getTechnicianAvailability = asyncHandler(async (req: Request, res: 
     }
   }
 });
+
+// Get available technicians (active only)
+export const getAvailableTechnicians = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const technicians = await Technician.find({ 
+      isActive: true 
+    })
+    .sort({ rating: -1, firstName: 1 })
+    .select('firstName lastName employeeId specialties skillLevel rating isActive');
+    
+    logger.info(`Retrieved ${technicians.length} available technicians`);
+    
+    ResponseUtil.success(res, {
+      technicians,
+      count: technicians.length
+    }, 'Available technicians retrieved successfully');
+    
+  } catch (error) {
+    logger.error('Error fetching available technicians:', error);
+    ResponseUtil.internalError(res, 'Failed to fetch available technicians');
+  }
+});
+
+// Get technicians for a specific service
+export const getTechniciansForService = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { serviceId } = req.params;
+    
+    if (!serviceId) {
+      ResponseUtil.badRequest(res, 'Service ID is required');
+      return;
+    }
+    
+    // For now, return all active technicians
+    // TODO: Implement service-specific technician matching based on specialties
+    const technicians = await Technician.find({ 
+      isActive: true 
+    })
+    .sort({ rating: -1, firstName: 1 })
+    .select('firstName lastName employeeId specialties skillLevel rating');
+    
+    logger.info(`Retrieved ${technicians.length} technicians for service ${serviceId}`);
+    
+    ResponseUtil.success(res, {
+      serviceId,
+      technicians,
+      count: technicians.length
+    }, 'Technicians for service retrieved successfully');
+    
+  } catch (error) {
+    logger.error('Error fetching technicians for service:', error);
+    ResponseUtil.internalError(res, 'Failed to fetch technicians for service');
+  }
+});
+
+// Check technician availability for a specific date/time
+export const checkTechnicianAvailability = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const technicianId = req.params.id; // Use 'id' parameter name to match route /:id/check-availability
+    const { date, startTime, duration } = req.body;
+    
+    if (!technicianId || !date || !startTime || !duration) {
+      ResponseUtil.badRequest(res, 'Technician ID, date, start time, and duration are required');
+      return;
+    }
+    
+    // Import Booking model to check conflicts
+    const { Booking } = await import('@/models/Booking');
+    
+    // Parse the date and time
+    const appointmentDate = new Date(date);
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDateTime = new Date(appointmentDate);
+    startDateTime.setHours(hours, minutes, 0, 0);
+    
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + duration);
+    
+    // Check for existing bookings that conflict
+    const conflicts = await Booking.find({
+      'services.technicianId': technicianId,
+      appointmentDate: {
+        $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
+        $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
+      },
+      status: { $in: ['scheduled', 'confirmed', 'in_progress'] }
+    }).populate('services.serviceId', 'name duration_minutes');
+    
+    // Check for time conflicts
+    let hasConflict = false;
+    const conflictDetails = [];
+    
+    for (const booking of conflicts) {
+      const bookingStart = new Date(`${booking.appointmentDate.toDateString()} ${booking.startTime}`);
+      const bookingEnd = new Date(`${booking.appointmentDate.toDateString()} ${booking.endTime}`);
+      
+      // Check if times overlap
+      if ((startDateTime < bookingEnd) && (endDateTime > bookingStart)) {
+        hasConflict = true;
+        conflictDetails.push({
+          bookingId: booking._id,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          services: booking.services
+        });
+      }
+    }
+    
+    logger.info(`Checked availability for technician ${technicianId} on ${date} at ${startTime}`);
+    
+    ResponseUtil.success(res, {
+      technicianId,
+      date,
+      startTime,
+      duration,
+      available: !hasConflict,
+      conflicts: conflictDetails
+    }, hasConflict ? 'Technician has conflicts' : 'Technician is available');
+    
+  } catch (error) {
+    logger.error('Error checking technician availability:', error);
+    ResponseUtil.internalError(res, 'Failed to check technician availability');
+  }
+});

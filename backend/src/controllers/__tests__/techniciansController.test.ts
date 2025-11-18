@@ -591,4 +591,212 @@ describe('Technicians Controller', () => {
       expect(Array.isArray(technicianData.certifications)).toBe(true);
     });
   });
+
+  describe('GET /api/technicians/available', () => {
+    beforeEach(async () => {
+      await Technician.deleteMany({});
+      await Technician.create([
+        {
+          firstName: 'Active',
+          lastName: 'Technician',
+          email: 'active@hanasalon.com',
+          phone: '+1234567890',
+          employeeId: 'EMP001',
+          specialties: ['Manicure'],
+          skillLevel: 'Senior',
+          yearsOfExperience: 3,
+          hourlyRate: 40,
+          isActive: true,
+          hireDate: '2022-01-01'
+        },
+        {
+          firstName: 'Inactive',
+          lastName: 'Technician',
+          email: 'inactive@hanasalon.com',
+          phone: '+1234567891',
+          employeeId: 'EMP002',
+          specialties: ['Pedicure'],
+          skillLevel: 'Junior',
+          yearsOfExperience: 1,
+          hourlyRate: 30,
+          isActive: false,
+          hireDate: '2023-01-01'
+        }
+      ]);
+    });
+
+    test('should return only active technicians', async () => {
+      const response = await request(app)
+        .get('/api/technicians/available')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('technicians');
+      expect(response.body.data).toHaveProperty('count', 1);
+      expect(response.body.data.technicians[0]).toHaveProperty('firstName', 'Active');
+      expect(response.body.data.technicians[0]).toHaveProperty('isActive', true);
+    });
+
+    test('should sort by rating and firstName', async () => {
+      // Add another active technician with higher rating
+      await Technician.create({
+        firstName: 'Expert',
+        lastName: 'Technician',
+        email: 'expert@hanasalon.com',
+        phone: '+1234567892',
+        employeeId: 'EMP003',
+        specialties: ['Nail Art'],
+        skillLevel: 'Expert',
+        yearsOfExperience: 8,
+        hourlyRate: 60,
+        rating: 4.9,
+        isActive: true,
+        hireDate: '2020-01-01'
+      });
+
+      const response = await request(app)
+        .get('/api/technicians/available')
+        .expect(200);
+
+      expect(response.body.data.count).toBe(2);
+      // Should be sorted by rating desc, then firstName asc
+      expect(response.body.data.technicians[0].firstName).toBe('Expert');
+      expect(response.body.data.technicians[1].firstName).toBe('Active');
+    });
+  });
+
+  describe('GET /api/technicians/service/:serviceId', () => {
+    let serviceId: string;
+
+    beforeEach(async () => {
+      await Technician.deleteMany({});
+      serviceId = '507f1f77bcf86cd799439011'; // Mock ObjectId
+      
+      await Technician.create([
+        {
+          firstName: 'Qualified',
+          lastName: 'Technician',
+          email: 'qualified@hanasalon.com',
+          phone: '+1234567890',
+          employeeId: 'EMP001',
+          specialties: ['Manicure', 'Nail Art'],
+          skillLevel: 'Expert',
+          yearsOfExperience: 5,
+          hourlyRate: 50,
+          isActive: true,
+          hireDate: '2021-01-01'
+        },
+        {
+          firstName: 'Another',
+          lastName: 'Technician',
+          email: 'another@hanasalon.com',
+          phone: '+1234567891',
+          employeeId: 'EMP002',
+          specialties: ['Pedicure'],
+          skillLevel: 'Senior',
+          yearsOfExperience: 3,
+          hourlyRate: 40,
+          isActive: true,
+          hireDate: '2022-01-01'
+        }
+      ]);
+    });
+
+    test('should return technicians for service', async () => {
+      const response = await request(app)
+        .get(`/api/technicians/service/${serviceId}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('serviceId', serviceId);
+      expect(response.body.data).toHaveProperty('technicians');
+      expect(response.body.data).toHaveProperty('count', 2);
+      expect(Array.isArray(response.body.data.technicians)).toBe(true);
+    });
+
+    test('should return 400 for empty service ID', async () => {
+      const response = await request(app)
+        .get('/api/technicians/service/ ')
+        .expect(400); // Our function returns 400 for empty service ID
+    });
+
+    test('should sort by rating and firstName', async () => {
+      const response = await request(app)
+        .get(`/api/technicians/service/${serviceId}`)
+        .expect(200);
+
+      const technicians = response.body.data.technicians;
+      // Should be sorted by rating desc, then firstName asc
+      // Both have default rating of 5.0, so sorted by firstName
+      expect(technicians[0].firstName).toBe('Another'); // 'Another' comes before 'Qualified'
+      expect(technicians[1].firstName).toBe('Qualified');
+    });
+  });
+
+  describe('POST /api/technicians/:id/check-availability', () => {
+    let technicianId: string;
+
+    beforeEach(async () => {
+      await Technician.deleteMany({});
+      const technician = await Technician.create({
+        firstName: 'Available',
+        lastName: 'Technician',
+        email: 'available@hanasalon.com',
+        phone: '+1234567890',
+        employeeId: 'EMP001',
+        specialties: ['Manicure'],
+        skillLevel: 'Senior',
+        yearsOfExperience: 3,
+        hourlyRate: 40,
+        isActive: true,
+        hireDate: '2022-01-01'
+      });
+      technicianId = technician._id.toString();
+    });
+
+    test('should check availability successfully', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const response = await request(app)
+        .post(`/api/technicians/${technicianId}/check-availability`)
+        .send({
+          date: tomorrow.toISOString().split('T')[0],
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(200);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('technicianId', technicianId);
+      expect(response.body.data).toHaveProperty('available', true);
+      expect(response.body.data).toHaveProperty('conflicts');
+      expect(Array.isArray(response.body.data.conflicts)).toBe(true);
+    });
+
+    test('should return 400 for missing required fields', async () => {
+      const response = await request(app)
+        .post(`/api/technicians/${technicianId}/check-availability`)
+        .send({
+          date: '2024-12-01'
+          // Missing startTime and duration
+        })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should return 500 for invalid technician ID', async () => {
+      const response = await request(app)
+        .post('/api/technicians/invalid-id/check-availability')
+        .send({
+          date: '2024-12-01',
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(500); // Will be internal server error due to invalid ObjectId format
+
+      expect(response.body).toHaveProperty('success', false);
+    });
+  });
 });

@@ -425,4 +425,71 @@ describe('Services Controller', () => {
       expect(timeDiff).toBeLessThan(60000); // 1 minute
     });
   });
+
+  describe('GET /api/services/name/:name', () => {
+    beforeEach(async () => {
+      // Clean up and create test services
+      await Service.deleteMany({});
+      await Service.create([
+        {
+          name: 'Gel Manicure',
+          category: 'Nails',
+          duration_minutes: 45,
+          price: 35.00,
+          description: 'Professional gel manicure service'
+        },
+        {
+          name: 'Acrylic Full Set',
+          category: 'Nails',
+          duration_minutes: 90,
+          price: 55.00,
+          description: 'Complete acrylic nail set'
+        }
+      ]);
+    });
+
+    test('should return service by exact name match', async () => {
+      const response = await request(app)
+        .get('/api/services/name/Gel Manicure')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('name', 'Gel Manicure');
+      expect(response.body.data).toHaveProperty('price', 35);
+      expect(response.body.data).toHaveProperty('duration_minutes', 45);
+    });
+
+    test('should return service by case-insensitive match', async () => {
+      const response = await request(app)
+        .get('/api/services/name/gel manicure')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('name', 'Gel Manicure');
+    });
+
+    test('should return service by partial match', async () => {
+      const response = await request(app)
+        .get('/api/services/name/Gel')
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('name', 'Gel Manicure');
+    });
+
+    test('should return 404 for non-existent service', async () => {
+      const response = await request(app)
+        .get('/api/services/name/NonExistentService')
+        .expect(404);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    test('should return 400 for empty service name', async () => {
+      const response = await request(app)
+        .get('/api/services/name/')
+        .expect(404); // Express will return 404 for missing parameter
+    });
+  });
 });

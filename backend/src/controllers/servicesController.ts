@@ -169,3 +169,33 @@ export const deleteService = asyncHandler(async (req: Request, res: Response): P
     }
   }
 });
+
+// Get service by name (for AI service matching)
+export const getServiceByName = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name } = req.params;
+    
+    if (!name) {
+      ResponseUtil.badRequest(res, 'Service name is required');
+      return;
+    }
+    
+    // Case-insensitive search with partial matching
+    const service = await Service.findOne({
+      name: { $regex: new RegExp(name, 'i') }
+    });
+    
+    if (!service) {
+      ResponseUtil.notFound(res, `Service with name "${name}" not found`);
+      return;
+    }
+    
+    logger.info(`Retrieved service by name: ${service.name}`);
+    
+    ResponseUtil.success(res, service, 'Service retrieved successfully');
+    
+  } catch (error) {
+    logger.error('Error fetching service by name:', error);
+    ResponseUtil.internalError(res, 'Failed to fetch service');
+  }
+});

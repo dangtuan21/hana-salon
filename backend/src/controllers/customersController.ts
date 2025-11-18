@@ -259,3 +259,35 @@ export const reactivateCustomer = asyncHandler(async (req: Request, res: Respons
     }
   }
 });
+
+// Get customer by phone number (for AI service)
+export const getCustomerByPhone = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone } = req.params;
+    
+    if (!phone) {
+      ResponseUtil.badRequest(res, 'Phone number is required');
+      return;
+    }
+    
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    
+    const customer = await Customer.findOne({
+      phone: { $regex: new RegExp(cleanPhone, 'i') }
+    }).select('_id firstName lastName email phone isActive preferences');
+    
+    if (!customer) {
+      ResponseUtil.notFound(res, `Customer with phone "${phone}" not found`);
+      return;
+    }
+    
+    logger.info(`Retrieved customer by phone: ${customer.firstName} ${customer.lastName}`);
+    
+    ResponseUtil.success(res, customer, 'Customer retrieved successfully');
+    
+  } catch (error) {
+    logger.error('Error fetching customer by phone:', error);
+    ResponseUtil.internalError(res, 'Failed to fetch customer');
+  }
+});
