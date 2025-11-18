@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Initialize MongoDB database with nail salon data
+Initialize MongoDB database with salon data
 """
 
 from database import DatabaseManager, Service, Technician, SkillLevel, ServiceCategory
-from salon_data import NAIL_SERVICES, TECHNICIANS
+from salon_data import services, technicians
 
 def init_database():
     """Initialize database with salon data"""
-    print("🚀 Initializing Hana AI Nail Salon Database...")
+    print("🚀 Initializing Hana Salon Database...")
     
     db = DatabaseManager()
     
@@ -20,10 +20,10 @@ def init_database():
     db.bookings.delete_many({})
     
     # Insert services
-    print("💅 Inserting nail services...")
+    print("💅 Inserting salon services...")
     service_id_mapping = {}  # Map old IDs to new MongoDB IDs
     
-    for old_service in NAIL_SERVICES:
+    for old_service in services:
         service = Service(
             name=old_service.name,
             category=old_service.category.value,
@@ -42,7 +42,7 @@ def init_database():
     print("👩‍💼 Inserting technicians...")
     technician_id_mapping = {}  # Map old IDs to new MongoDB IDs
     
-    for old_tech in TECHNICIANS:
+    for old_tech in technicians:
         # Map old service IDs to new MongoDB IDs in specialties
         new_specialties = []
         for old_service_id in old_tech.specialties:
@@ -70,8 +70,8 @@ def init_database():
     print("\n📊 Database Initialization Summary:")
     print(f"  Services: {len(service_id_mapping)}")
     print(f"  Technicians: {len(technician_id_mapping)}")
-    print(f"  Categories: {len(set(s.category for s in NAIL_SERVICES))}")
-    print(f"  Skill Levels: {len(set(t.skill_level.value for t in TECHNICIANS))}")
+    print(f"  Categories: {len(set(s.category for s in services))}")
+    print(f"  Skill Levels: {len(set(t.skill_level.value for t in technicians))}")
     
     # Print ID mappings for reference
     print("\n🔗 Service ID Mappings:")

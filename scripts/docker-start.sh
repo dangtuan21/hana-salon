@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Hana AI Salon - Docker Start Script
+# Hana Salon - Docker Start Script
 
 set -e
 
@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "🚀 Starting Hana AI Salon in $MODE mode..."
+echo "🚀 Starting Hana Salon in $MODE mode..."
 
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
@@ -110,7 +110,7 @@ else
     print_warning "⚠️  Backend is starting up..."
 fi
 
-print_success "🎉 Hana AI Salon is starting up!"
+print_success "🎉 Hana Salon is starting up!"
 print_status "Services:"
 print_status "  • Backend API: http://localhost:3060"
 print_status "  • AI Service: http://localhost:8060"

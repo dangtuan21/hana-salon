@@ -8,7 +8,7 @@ def print_workflow_diagram():
     Print ASCII diagram of the booking workflow
     """
     diagram = """
-🏨 HANA AI BOOKING WORKFLOW
+🏨 HANA SALON BOOKING WORKFLOW
 ═══════════════════════════════════════════════════════════════
 
     ┌─────────────────┐

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Nail Salon Data - Services, Technicians, and Business Logic
+Salon Data - Services, Technicians, and Business Logic
 """
 
 from datetime import datetime, timedelta
@@ -21,7 +21,7 @@ class ServiceCategory(Enum):
     LUXURY = "Luxury Services"
 
 @dataclass
-class NailService:
+class Service:
     id: str
     name: str
     category: ServiceCategory
@@ -45,67 +45,67 @@ class Technician:
     is_available: bool
     bio: str
 
-# Comprehensive Nail Services Catalog
-NAIL_SERVICES = [
+# Comprehensive Services Catalog
+services = [
     # Basic Services
-    NailService("basic_manicure", "Classic Manicure", ServiceCategory.BASIC, 45, 35.00, 
+    Service("basic_manicure", "Classic Manicure", ServiceCategory.BASIC, 45, 35.00, 
                "Traditional nail care with cuticle treatment, shaping, and regular polish", 
                SkillLevel.JUNIOR, 8),
-    NailService("basic_pedicure", "Classic Pedicure", ServiceCategory.BASIC, 60, 45.00,
+    Service("basic_pedicure", "Classic Pedicure", ServiceCategory.BASIC, 60, 45.00,
                "Foot soak, callus removal, nail care, and regular polish",
                SkillLevel.JUNIOR, 9),
-    NailService("express_manicure", "Express Manicure", ServiceCategory.BASIC, 30, 25.00,
+    Service("express_manicure", "Express Manicure", ServiceCategory.BASIC, 30, 25.00,
                "Quick nail shaping, cuticle care, and polish application",
                SkillLevel.JUNIOR, 7),
     
     # Advanced Services  
-    NailService("gel_manicure", "Gel Manicure", ServiceCategory.ADVANCED, 60, 55.00,
+    Service("gel_manicure", "Gel Manicure", ServiceCategory.ADVANCED, 60, 55.00,
                "Long-lasting gel polish with UV curing, lasts 2-3 weeks",
                SkillLevel.SENIOR, 10),
-    NailService("gel_pedicure", "Gel Pedicure", ServiceCategory.ADVANCED, 75, 65.00,
+    Service("gel_pedicure", "Gel Pedicure", ServiceCategory.ADVANCED, 75, 65.00,
                "Gel polish for toes with extended wear and chip resistance",
                SkillLevel.SENIOR, 9),
-    NailService("acrylic_full_set", "Acrylic Full Set", ServiceCategory.ADVANCED, 90, 75.00,
+    Service("acrylic_full_set", "Acrylic Full Set", ServiceCategory.ADVANCED, 90, 75.00,
                "Complete acrylic nail extensions with shaping and polish",
                SkillLevel.SENIOR, 8),
-    NailService("acrylic_fill", "Acrylic Fill", ServiceCategory.ADVANCED, 60, 45.00,
+    Service("acrylic_fill", "Acrylic Fill", ServiceCategory.ADVANCED, 60, 45.00,
                "Maintenance for existing acrylic nails",
                SkillLevel.SENIOR, 7),
-    NailService("dip_powder", "Dip Powder Nails", ServiceCategory.ADVANCED, 75, 60.00,
+    Service("dip_powder", "Dip Powder Nails", ServiceCategory.ADVANCED, 75, 60.00,
                "Durable dip powder system for long-lasting color",
                SkillLevel.SENIOR, 8),
     
     # Specialty Services
-    NailService("nail_art_simple", "Simple Nail Art", ServiceCategory.SPECIALTY, 30, 20.00,
+    Service("nail_art_simple", "Simple Nail Art", ServiceCategory.SPECIALTY, 30, 20.00,
                "Basic designs, dots, stripes, or simple patterns (add-on)",
                SkillLevel.SENIOR, 6),
-    NailService("nail_art_complex", "Complex Nail Art", ServiceCategory.SPECIALTY, 60, 50.00,
+    Service("nail_art_complex", "Complex Nail Art", ServiceCategory.SPECIALTY, 60, 50.00,
                "Intricate designs, hand-painted art, 3D elements",
                SkillLevel.EXPERT, 5),
-    NailService("french_manicure", "French Manicure", ServiceCategory.SPECIALTY, 50, 40.00,
+    Service("french_manicure", "French Manicure", ServiceCategory.SPECIALTY, 50, 40.00,
                "Classic white tips with nude or clear base",
                SkillLevel.SENIOR, 7),
-    NailService("ombre_nails", "Ombre/Gradient Nails", ServiceCategory.SPECIALTY, 75, 65.00,
+    Service("ombre_nails", "Ombre/Gradient Nails", ServiceCategory.SPECIALTY, 75, 65.00,
                "Beautiful color gradient effect on nails",
                SkillLevel.EXPERT, 6),
     
     # Luxury Services
-    NailService("luxury_spa_mani", "Luxury Spa Manicure", ServiceCategory.LUXURY, 90, 85.00,
+    Service("luxury_spa_mani", "Luxury Spa Manicure", ServiceCategory.LUXURY, 90, 85.00,
                "Premium treatment with paraffin, massage, and luxury products",
                SkillLevel.EXPERT, 4),
-    NailService("luxury_spa_pedi", "Luxury Spa Pedicure", ServiceCategory.LUXURY, 120, 95.00,
+    Service("luxury_spa_pedi", "Luxury Spa Pedicure", ServiceCategory.LUXURY, 120, 95.00,
                "Deluxe foot treatment with hot stones, extended massage, and premium care",
                SkillLevel.EXPERT, 5),
-    NailService("bridal_package", "Bridal Nail Package", ServiceCategory.LUXURY, 150, 150.00,
+    Service("bridal_package", "Bridal Nail Package", ServiceCategory.LUXURY, 150, 150.00,
                "Complete bridal nail service with trial, custom design, and premium finish",
                SkillLevel.MASTER, 3),
-    NailService("nail_repair", "Nail Repair", ServiceCategory.SPECIALTY, 30, 15.00,
+    Service("nail_repair", "Nail Repair", ServiceCategory.SPECIALTY, 30, 15.00,
                "Fix broken or damaged nails",
                SkillLevel.SENIOR, 4),
 ]
 
 # Salon Technicians
-TECHNICIANS = [
+technicians = [
     # Master Level
     Technician("tech_001", "Isabella Rodriguez", SkillLevel.MASTER, 
               ["bridal_package", "nail_art_complex", "luxury_spa_mani", "luxury_spa_pedi"],
@@ -188,24 +188,24 @@ BUSINESS_HOURS = {
     "Sunday": {"open": "10:00", "close": "18:00"},
 }
 
-def get_service_by_id(service_id: str) -> Optional[NailService]:
+def get_service_by_id(service_id: str) -> Optional[Service]:
     """Get service details by ID"""
-    for service in NAIL_SERVICES:
+    for service in services:
         if service.id == service_id:
             return service
     return None
 
-def get_service_by_name(service_name: str) -> Optional[NailService]:
+def get_service_by_name(service_name: str) -> Optional[Service]:
     """Get service details by name (fuzzy matching)"""
     service_name_lower = service_name.lower()
     
     # Exact match first
-    for service in NAIL_SERVICES:
+    for service in services:
         if service.name.lower() == service_name_lower:
             return service
     
     # Partial match
-    for service in NAIL_SERVICES:
+    for service in services:
         if service_name_lower in service.name.lower() or service.name.lower() in service_name_lower:
             return service
     
@@ -213,7 +213,7 @@ def get_service_by_name(service_name: str) -> Optional[NailService]:
 
 def get_technician_by_id(tech_id: str) -> Optional[Technician]:
     """Get technician details by ID"""
-    for tech in TECHNICIANS:
+    for tech in technicians:
         if tech.id == tech_id:
             return tech
     return None
@@ -223,12 +223,12 @@ def get_technician_by_name(tech_name: str) -> Optional[Technician]:
     tech_name_lower = tech_name.lower()
     
     # Exact match first
-    for tech in TECHNICIANS:
+    for tech in technicians:
         if tech.name.lower() == tech_name_lower:
             return tech
     
     # Partial match (first name or last name)
-    for tech in TECHNICIANS:
+    for tech in technicians:
         if tech_name_lower in tech.name.lower():
             return tech
     
@@ -241,7 +241,7 @@ def get_available_technicians_for_service(service_id: str, day: str = None) -> L
         return []
     
     available_techs = []
-    for tech in TECHNICIANS:
+    for tech in technicians:
         # Check if technician is available and has required skill level
         if (tech.is_available and 
             tech.skill_level.value in [service.required_skill_level.value, 
@@ -288,11 +288,11 @@ def calculate_total_cost(service_id: str, technician_id: str) -> float:
     premium = base_cost * skill_premium.get(technician.skill_level, 0.0)
     return round(base_cost + premium, 2)
 
-def get_popular_services(limit: int = 5) -> List[NailService]:
+def get_popular_services(limit: int = 5) -> List[Service]:
     """Get most popular services"""
-    sorted_services = sorted(NAIL_SERVICES, key=lambda s: s.popularity_score, reverse=True)
+    sorted_services = sorted(services, key=lambda s: s.popularity_score, reverse=True)
     return sorted_services[:limit]
 
-def get_services_by_category(category: ServiceCategory) -> List[NailService]:
+def get_services_by_category(category: ServiceCategory) -> List[Service]:
     """Get services by category"""
-    return [service for service in NAIL_SERVICES if service.category == category]
+    return [service for service in services if service.category == category]

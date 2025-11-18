@@ -1,7 +1,7 @@
 {
   "name": "hana-ai-backend",
   "version": "1.0.0",
-  "description": "Backend API for Hana AI Nail Salon Booking System",
+  "description": "Backend API for Hana Salon Booking System",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
@@ -48,6 +48,6 @@
     "ai",
     "typescript"
   ],
-  "author": "Hana AI Team",
+  "author": "Hana Salon Team",
   "license": "MIT"
 }

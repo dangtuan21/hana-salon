@@ -1,4 +1,4 @@
-HANA AI NAIL SALON BOOKING SYSTEM - LANGRAPH FLOW
+HANA SALON BOOKING SYSTEM - LANGRAPH FLOW
 ==================================================
 
                     ┌─────────────────┐
@@ -8,7 +8,7 @@ HANA AI NAIL SALON BOOKING SYSTEM - LANGRAPH FLOW
                               ▼
                     ┌─────────────────┐
                     │   NODE 1:       │
-                    │ NAIL BOOKING    │
+                    │ BOOKING         │
                     │ VALIDATION      │
                     │                 │
                     │ • Extract name  │
@@ -21,7 +21,7 @@ HANA AI NAIL SALON BOOKING SYSTEM - LANGRAPH FLOW
                               ▼
                     ┌─────────────────┐
                     │   NODE 2:       │
-                    │ NAIL BOOKING    │
+                    │ BOOKING         │
                     │ CONFIRMATION    │
                     │                 │
                     │ • Generate ID   │
@@ -44,7 +44,7 @@ INPUT: "Hi, I'm Emma Watson and I'd like to book a gel manicure
         │
         ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ NODE 1: NAIL BOOKING VALIDATION                               │
+│ NODE 1: BOOKING VALIDATION                                    │
 │                                                               │
 │ Process:                                                      │
 │ ├─ Parse customer name: "Emma Watson"                        │
@@ -63,16 +63,16 @@ INPUT: "Hi, I'm Emma Watson and I'd like to book a gel manicure
         │
         ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ NODE 2: NAIL BOOKING CONFIRMATION                            │
+│ NODE 2: BOOKING CONFIRMATION                                 │
 │                                                               │
 │ Process:                                                      │
 │ ├─ Check validation: VALID ✓                                │
-│ ├─ Generate ID: "NAIL-20251117014652"                       │
+│ ├─ Generate ID: "SPA-20251117014652"                        │
 │ ├─ Create professional message with nail tips               │
 │ └─ Finalize booking                                          │
 │                                                               │
 │ Output State:                                                 │
-│ ├─ confirmation_id: "NAIL-20251117014652"                   │
+│ ├─ confirmation_id: "SPA-20251117014652"                    │
 │ └─ final_response: "Professional confirmation message..."    │
 └───────────────────────────────────────────────────────────────┘
         │
@@ -93,7 +93,7 @@ BookingState = {
     date: ""                        → "2024-12-15"
     time: ""                        → "14:30"
     validation_status: ""           → "VALID"
-    confirmation_id: ""             → "NAIL-20251117014652"
+    confirmation_id: ""             → "SPA-20251117014652"
     final_response: ""              → "Professional message..."
 }
 

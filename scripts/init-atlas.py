@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Initialize MongoDB Atlas with Hana AI Salon data
+Initialize MongoDB Atlas with Hana Salon data
 Run this script after setting up your Atlas cluster
 """
 
@@ -18,7 +18,7 @@ from salon_data import services, technicians
 def main():
     """Initialize Atlas database with salon data"""
     
-    print("🚀 Initializing MongoDB Atlas with Hana AI Salon data...")
+    print("🚀 Initializing MongoDB Atlas with Hana Salon data...")
     
     # Check if environment variables are set
     mongodb_url = os.getenv('MONGODB_URL')

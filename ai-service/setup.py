@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for Hana AI Booking System
+Setup script for Hana Salon Booking System
 """
 
 import os
@@ -48,7 +48,7 @@ def setup_env_file():
 
 def run_setup():
     """Run the complete setup process"""
-    print("🚀 HANA AI BOOKING SYSTEM SETUP")
+    print("🚀 HANA SALON BOOKING SYSTEM SETUP")
     print("=" * 40)
     
     steps = [

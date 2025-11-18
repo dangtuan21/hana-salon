@@ -1,4 +1,4 @@
-HANA AI NAIL SALON BOOKING SYSTEM - 3-COMPONENT ARCHITECTURE FLOW
+HANA SALON BOOKING SYSTEM - 3-COMPONENT ARCHITECTURE FLOW
 ====================================================================
 
                     +-------------------+
@@ -101,7 +101,7 @@ DETAILED COMPONENT INTERACTION FLOW:
    {                                   |
      "customer_name": "Emma",          |
      "service_type": "Gel Manicure",   |
-     "confirmation_id": "NAIL-123",    |
+     "confirmation_id": "SPA-123",     |
      "final_response": "Confirmed..."  |
    }                                   |
                                        v
@@ -190,7 +190,7 @@ AI Service │
            │                  service_type: "Gel Manicure"  
            │                  date: "2024-12-15"
            │                  time: "14:30"
-           │ Node2: Generate → confirmation_id: "NAIL-123"
+           │ Node2: Generate → confirmation_id: "SPA-123"
            │                   final_response: "Dear Emma..."
            │
            │ Response:
@@ -199,7 +199,7 @@ AI Service │
            │   "service_type": "Gel Manicure", 
            │   "date": "2024-12-15",
            │   "time": "14:30",
-           │   "confirmation_id": "NAIL-123",
+           │   "confirmation_id": "SPA-123",
            │   "final_response": "Dear Emma, confirmed..."
            │ }
            │

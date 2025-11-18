@@ -53,7 +53,7 @@ app.use('/api/customers', customerRoutes);
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
-    message: '💅 Hana AI Nail Salon Booking API',
+    message: '💅 Hana Salon Booking API',
     version: '1.0.0',
     status: 'running',
     endpoints: {
@@ -85,7 +85,7 @@ app.use('*', (req: Request, res: Response) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Hana AI Backend server running on port ${PORT}`);
+  console.log(`🚀 Hana Salon Backend server running on port ${PORT}`);
   console.log(`📍 API available at: http://localhost:${PORT}`);
   console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
 });

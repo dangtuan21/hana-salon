@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Hana AI Salon - Docker Build Script
+# Hana Salon - Docker Build Script
 
 set -e
 
-echo "🚀 Building Hana AI Salon Docker Images..."
+echo "🚀 Building Hana Salon Docker Images..."
 
 # Colors for output
 RED='\033[0;31m'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FastAPI server for Hana AI Nail Salon Booking Service
+FastAPI server for Hana Salon Booking Service
 Wraps the Langraph workflow in a REST API
 """
 
@@ -19,8 +19,8 @@ from booking_app import process_booking, create_booking_workflow
 load_dotenv()
 
 app = FastAPI(
-    title="Hana AI Nail Salon Booking Service",
-    description="AI-powered nail salon booking system using Langraph",
+    title="Hana Salon Booking Service",
+    description="AI-powered salon booking system using Langraph",
     version="1.0.0"
 )
 
@@ -84,7 +84,7 @@ class HealthResponse(BaseModel):
 async def root():
     """Root endpoint with service information"""
     return {
-        "message": "💅 Hana AI Nail Salon Booking & Scheduling Service",
+        "message": "💅 Hana Salon Booking & Scheduling Service",
         "version": "1.0.0",
         "status": "running",
         "focus": "Booking and scheduling operations only",
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8060))
     host = os.getenv("HOST", "0.0.0.0")
     
-    print(f"🚀 Starting Hana AI Booking Service on {host}:{port}")
+    print(f"🚀 Starting Hana Salon Booking Service on {host}:{port}")
     print(f"📋 API Documentation available at: http://{host}:{port}/docs")
     
     uvicorn.run(

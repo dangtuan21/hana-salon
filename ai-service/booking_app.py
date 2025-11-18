@@ -43,7 +43,7 @@ def booking_validation_node(state: BookingState) -> BookingState:
     """
     Node 1: Enhanced validation with service matching and technician availability
     """
-    print("💅 Processing enhanced nail booking validation...")
+    print("💅 Processing enhanced booking validation...")
     
     # Import database manager
     from database import get_db_manager, Customer
@@ -66,7 +66,7 @@ def booking_validation_node(state: BookingState) -> BookingState:
     ])
     
     validation_prompt = f"""
-    You are an expert nail salon booking assistant. Analyze this booking request and extract information.
+    You are an expert salon booking assistant. Analyze this booking request and extract information.
     
     Booking Request: {booking_request}
     
@@ -188,9 +188,9 @@ def booking_validation_node(state: BookingState) -> BookingState:
 
 def booking_confirmation_node(state: BookingState) -> BookingState:
     """
-    Node 2: Processes and confirms the nail booking with database storage
+    Node 2: Processes and confirms the booking with database storage
     """
-    print("💅 Processing nail booking confirmation...")
+    print("💅 Processing booking confirmation...")
     
     from database import get_db_manager, Customer, Booking
     
@@ -212,7 +212,7 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
         # Create new customer
         customer = Customer(
             name=state["customer_name"],
-            phone=state["customer_phone"] if state["customer_phone"] != "Not specified" else "",
+            phone=state["customer_phone"] if state["customer_phone"] != "Not specified" else f"temp_{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
             preferences={"preferred_technician": state["technician_name"] if state["technician_name"] else None}
         )
         customer_id = db.create_customer(customer)
@@ -221,7 +221,7 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
     
     # Generate confirmation ID
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    state["confirmation_id"] = f"NAIL-{timestamp}"
+    state["confirmation_id"] = f"SPA-{timestamp}"
     
     # Save booking to database
     if customer and state["service_id"] and state["technician_id"]:
@@ -248,12 +248,12 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
         db.update_customer(customer._id, {"booking_history": customer.booking_history})
     
     confirmation_prompt = f"""
-    Create a professional nail salon booking confirmation message for:
+    Create a professional salon booking confirmation message for:
     
     Customer: {state['customer_name']}
     Phone: {state['customer_phone']}
     Service: {state['service_name']} 
-    Description: {state['service_details'].get('description', 'Professional nail service')}
+    Description: {state['service_details'].get('description', 'Professional salon service')}
     Technician: {state['technician_name']}
     Date: {state['date']}
     Time: {state['time']}
@@ -268,7 +268,7 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
     - Cancellation policy (24-hour notice required)
     - Contact information for changes
     
-    Format it as a complete booking confirmation that a real nail salon would send.
+    Format it as a complete booking confirmation that a real salon would send.
     """
     
     messages = [
@@ -279,9 +279,9 @@ def booking_confirmation_node(state: BookingState) -> BookingState:
     response = llm.invoke(messages)
     state["final_response"] = response.content
     
-    state["messages"].append(HumanMessage(content=f"Nail booking confirmed with ID: {state['confirmation_id']}"))
+    state["messages"].append(HumanMessage(content=f"Booking confirmed with ID: {state['confirmation_id']}"))
     
-    print(f"✅ Nail booking confirmed with ID: {state['confirmation_id']}")
+    print(f"✅ Booking confirmed with ID: {state['confirmation_id']}")
     return state
 
 def create_booking_workflow():
@@ -306,9 +306,9 @@ def create_booking_workflow():
 
 def process_booking(booking_request: str):
     """
-    Process a nail booking request through the Langraph workflow
+    Process a booking request through the Langraph workflow
     """
-    print("� Starting nail booking process...")
+    print("🔄 Starting booking process...")
     print(f"📝 Request: {booking_request}")
     print("-" * 50)
     
@@ -340,7 +340,7 @@ def process_booking(booking_request: str):
     final_state = app.invoke(initial_state)
     
     print("-" * 50)
-    print("💅 ENHANCED NAIL BOOKING SUMMARY:")
+    print("💅 ENHANCED BOOKING SUMMARY:")
     print(f"Customer: {final_state['customer_name']}")
     print(f"Phone: {final_state['customer_phone']}")
     print(f"Service: {final_state['service_name']} ({final_state['service_id']})")
@@ -359,7 +359,7 @@ def process_booking(booking_request: str):
     return final_state
 
 if __name__ == "__main__":
-    # Realistic nail salon booking requests
+    # Realistic salon booking requests
     sample_requests = [
         "Hi, I'm Emma Watson (555-0123) and I'd like to book a gel manicure with Isabella for December 15th, 2024 at 2:30 PM",
         "Hello, my name is Sarah Johnson. I need to schedule an acrylic full set for next Friday at 11 AM. Do you have any expert level technicians available?",
@@ -369,11 +369,11 @@ if __name__ == "__main__":
         "Hi, I need a dip powder service with Sophia Chen if she's available. This is Amanda Wilson, December 20th around 1 PM would be perfect"
     ]
     
-    print("💅 HANA AI NAIL SALON BOOKING SYSTEM")
+    print("💅 HANA SALON BOOKING SYSTEM")
     print("=" * 50)
     
     for i, request in enumerate(sample_requests, 1):
-        print(f"\n� NAIL BOOKING REQUEST #{i}")
+        print(f"\n🔸 BOOKING REQUEST #{i}")
         process_booking(request)
         
-    print("\n✨ All nail booking requests processed!")
+    print("\n✨ All booking requests processed!")

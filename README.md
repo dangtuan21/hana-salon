@@ -1,6 +1,6 @@
-# Hana AI - Nail Salon Booking System
+# 💅 Hana Salon Booking System
 
-A microservices-based AI-powered nail salon booking application with service-oriented architecture.
+A microservices-based AI-powered salon booking application with service-oriented architecture.
 
 ## 🏗️ Architecture
 
@@ -182,7 +182,7 @@ docker-compose exec mongodb mongosh
 - **Health Check**: `GET /health`
 - **API Documentation**: `GET /docs`
 
-## 💅 Supported Nail Services
+## 💅 Supported Services
 - Basic Manicure/Pedicure
 - Gel Manicure/Pedicure  
 - Acrylic Nails
@@ -193,5 +193,5 @@ docker-compose exec mongodb mongosh
 
 ## 🔄 Langraph Workflow
 The AI service uses a 2-node Langraph workflow:
-- **Node 1**: Nail Booking Validation
-- **Node 2**: Nail Booking Confirmation
+- **Node 1**: Booking Validation
+- **Node 2**: Booking Confirmation

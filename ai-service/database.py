@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MongoDB Database Configuration and Models for Hana AI Nail Salon
+MongoDB Database Configuration and Models for Hana Salon
 
 This module provides database operations for the AI booking service.
 The AI service focuses on booking/scheduling operations only.
@@ -19,7 +19,7 @@ import json
 
 # Database configuration
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "hana_ai_salon")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "hanadb")
 
 class SkillLevel(Enum):
     JUNIOR = "Junior"
@@ -67,7 +67,7 @@ class Technician:
 @dataclass
 class Customer:
     name: str
-    phone: str
+    phone: Optional[str] = None
     email: Optional[str] = None
     preferences: Optional[Dict[str, Any]] = None
     booking_history: Optional[List[str]] = None  # Booking IDs
@@ -117,7 +117,7 @@ class DatabaseManager:
         self.technicians.create_index("specialties")
         
         # Customers indexes
-        self.customers.create_index("phone", unique=True)
+        # Note: No unique constraint on phone to allow multiple customers without phone numbers
         self.customers.create_index("email")
         
         # Bookings indexes
@@ -253,6 +253,8 @@ class DatabaseManager:
     
     def get_customer_by_phone(self, phone: str) -> Optional[Customer]:
         """Get customer by phone number"""
+        if not phone:
+            return None
         customer_doc = self.customers.find_one({"phone": phone})
         if customer_doc:
             customer_doc['_id'] = str(customer_doc['_id'])

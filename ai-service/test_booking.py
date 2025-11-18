@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple test script for the Hana AI Booking System
+Simple test script for the Hana Salon Booking System
 """
 
 from booking_app import process_booking
@@ -9,7 +9,7 @@ def interactive_booking():
     """
     Interactive booking system for testing
     """
-    print("🏨 HANA AI BOOKING SYSTEM - INTERACTIVE MODE")
+    print("🏨 HANA SALON BOOKING SYSTEM - INTERACTIVE MODE")
     print("=" * 50)
     print("Enter your booking request (or 'quit' to exit)")
     print("Example: 'Hi, I'm Alice and I want to book a spa appointment for tomorrow at 3 PM'")
@@ -19,7 +19,7 @@ def interactive_booking():
         booking_request = input("\n📝 Your booking request: ").strip()
         
         if booking_request.lower() in ['quit', 'exit', 'q']:
-            print("👋 Thank you for using Hana AI Booking System!")
+            print("👋 Thank you for using Hana Salon Booking System!")
             break
             
         if not booking_request:

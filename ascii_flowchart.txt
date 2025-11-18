@@ -1,4 +1,4 @@
-HANA AI NAIL SALON BOOKING SYSTEM - ASCII FLOWCHART
+HANA SALON BOOKING SYSTEM - ASCII FLOWCHART
 ====================================================
 
                         +---------------+
@@ -15,7 +15,7 @@ HANA AI NAIL SALON BOOKING SYSTEM - ASCII FLOWCHART
                                 v
     +-----------------------------------------------------------+
     |                    NODE 1                                |
-    |              NAIL BOOKING VALIDATION                     |
+    |              BOOKING VALIDATION                          |
     |                                                          |
     |  Input: booking_request                                  |
     |  Process:                                                |
@@ -43,11 +43,11 @@ HANA AI NAIL SALON BOOKING SYSTEM - ASCII FLOWCHART
                 v                           |
     +-----------------------------------------------------------+
     |                    NODE 2                                |
-    |              NAIL BOOKING CONFIRMATION                   |
+    |              BOOKING CONFIRMATION                        |
     |                                                          |
     |  Input: Validated BookingState                           |
     |  Process:                                                |
-    |    - Generate confirmation ID (NAIL-timestamp)          |
+    |    - Generate confirmation ID (SPA-timestamp)           |
     |    - Create professional message                         |
     |    - Add nail care preparation tips                      |
     |    - Handle invalid bookings                             |
@@ -88,7 +88,7 @@ Input: "Hi, I'm Emma Watson, book gel manicure Dec 15th 2:30 PM"
 | NODE 2: CONFIRMATION                                        |
 |                                                             |
 | Processing:                                                 |
-| confirmation_id: "" -------> "NAIL-20251117014652"        |
+| confirmation_id: "" -------> "SPA-20251117014652"         |
 | final_response: "" --------> "Professional message with   |
 |                              nail care tips..."           |
 +-------------------------------------------------------------+
@@ -117,7 +117,7 @@ BookingState:
 |   id: ""         |    |   status:"VALID" |    | validation_      |
 | final_response:  |    | confirmation_    |    |   status:"VALID" |
 |   ""             |    |   id: ""         |    | confirmation_    |
-+------------------+    | final_response:  |    |   id: "NAIL-..." |
++------------------+    | final_response:  |    |   id: "SPA-..."  |
                         |   ""             |    | final_response:  |
                         +------------------+    |   "Confirmation  |
                                                 |    message..."   |
@@ -176,4 +176,4 @@ WORKFLOW CHARACTERISTICS:
 * AI-powered natural language processing
 * Error handling at each stage
 * Professional nail salon messaging
-* Unique ID generation with NAIL- prefix
+* Unique ID generation with SPA- prefix
