@@ -1,0 +1,58 @@
+import { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet';
+import cors from 'cors';
+
+// Rate limiting configuration
+export const createRateLimiter = () => {
+  return rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+    message: {
+      success: false,
+      error: 'RATE_LIMIT_EXCEEDED',
+      message: 'Too many requests from this IP, please try again later.',
+      timestamp: new Date().toISOString()
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+};
+
+// CORS configuration
+export const corsOptions = {
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+// Helmet security configuration
+export const helmetConfig = helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+});
+
+// Request logging middleware
+export const requestLogger = (req: Request, res: Response, next: NextFunction): void => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.originalUrl} - ${res.statusCode} - ${duration}ms`);
+  });
+  
+  next();
+};

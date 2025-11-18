@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+dist
+logs
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.git
+.gitignore
+README.md
+test-endpoints.js
+coverage
+.nyc_output
+.eslintcache

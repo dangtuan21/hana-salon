@@ -1,93 +1,116 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
+import express from 'express';
+import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-
-import bookingRoutes from './routes/bookings';
-import healthRoutes from './routes/health';
-import serviceRoutes from './routes/services';
-import technicianRoutes from './routes/technicians';
-import customerRoutes from './routes/customers';
+import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from '@/config/swagger';
+import { corsOptions, helmetConfig, createRateLimiter } from '@/middleware/security';
+import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
+import routes from '@/routes';
+import logger from '@/utils/logger';
 
 // Load environment variables
 dotenv.config();
 
-const app: Application = express();
-const PORT = process.env.PORT || 3060;
+const app = express();
+const PORT = parseInt(process.env.PORT || '3060', 10);
+const HOST = process.env.HOST || 'localhost';
+const API_PREFIX = process.env.API_PREFIX || '/api';
+
+// Trust proxy for rate limiting and IP detection
+app.set('trust proxy', 1);
 
 // Security middleware
-app.use(helmet());
+app.use(helmetConfig);
+app.use(cors(corsOptions));
+app.use(createRateLimiter());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
+// General middleware
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
-  credentials: true,
+// Logging middleware
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined', {
+    stream: {
+      write: (message: string) => logger.info(message.trim())
+    }
+  }));
+}
+
+// Swagger Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Hana AI Backend API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true
+  }
 }));
 
-// Logging
-app.use(morgan('combined'));
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Routes
-app.use('/api/health', healthRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/technicians', technicianRoutes);
-app.use('/api/customers', customerRoutes);
+app.use(API_PREFIX, routes);
 
 // Root endpoint
-app.get('/', (req: Request, res: Response) => {
+app.get('/', (req, res) => {
   res.json({
-    message: '💅 Hana Salon Booking API',
+    success: true,
+    message: 'Hana AI Backend Server',
     version: '1.0.0',
-    status: 'running',
-    endpoints: {
-      health: '/api/health',
-      bookings: '/api/bookings',
-      services: '/api/services',
-      technicians: '/api/technicians',
-      customers: '/api/customers',
-    },
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    apiPrefix: API_PREFIX
   });
 });
 
-// Error handling middleware
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+// Graceful shutdown handling
+const server = app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server running on http://${HOST}:${PORT}`);
+  logger.info(`📚 API documentation available at http://${HOST}:${PORT}${API_PREFIX}`);
+  logger.info(`📖 Swagger UI: http://${HOST}:${PORT}/api-docs`);
+  logger.info(`🏥 Health check: http://${HOST}:${PORT}${API_PREFIX}/health`);
+  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    logger.info('Process terminated');
+    process.exit(0);
   });
 });
 
-// 404 handler
-app.use('*', (req: Request, res: Response) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl,
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  server.close(() => {
+    logger.info('Process terminated');
+    process.exit(0);
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Hana Salon Backend server running on port ${PORT}`);
-  console.log(`📍 API available at: http://localhost:${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/api/health`);
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
 
 export default app;

@@ -1,0 +1,170 @@
+paths:
+  /:
+    get:
+      tags: [API Info]
+      summary: Server information
+      description: Returns basic server information and API entry point
+      responses:
+        200:
+          description: Server information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  version:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  environment:
+                    type: string
+                  apiPrefix:
+                    type: string
+              example:
+                success: true
+                message: "Hana AI Backend Server"
+                version: "1.0.0"
+                timestamp: "2023-11-18T00:15:00.000Z"
+                environment: "development"
+                apiPrefix: "/api"
+
+  /api:
+    get:
+      tags: [API Info]
+      summary: API information
+      description: Returns basic information about the API and available endpoints
+      responses:
+        200:
+          description: API information
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          version:
+                            type: string
+                          endpoints:
+                            type: object
+                            properties:
+                              health:
+                                type: string
+                              ready:
+                                type: string
+                              live:
+                                type: string
+                              documentation:
+                                type: string
+              example:
+                success: true
+                message: "Hana AI Backend API"
+                data:
+                  version: "1.0.0"
+                  endpoints:
+                    health: "/api/health"
+                    ready: "/api/ready"
+                    live: "/api/live"
+                    documentation: "/api-docs"
+                timestamp: "2023-11-18T00:15:00.000Z"
+
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Comprehensive health check
+      description: Returns detailed health information including uptime, version, and service status
+      responses:
+        200:
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/HealthCheckResponse'
+              example:
+                success: true
+                message: "Service is healthy"
+                data:
+                  status: "healthy"
+                  timestamp: "2023-11-18T00:15:00.000Z"
+                  uptime: 3600
+                  version: "1.0.0"
+                  environment: "development"
+                  services:
+                    database: "disconnected"
+                    aiService: "disconnected"
+                timestamp: "2023-11-18T00:15:00.000Z"
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: Kubernetes readiness probe endpoint - checks if service is ready to accept traffic
+      responses:
+        200:
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          ready:
+                            type: boolean
+              example:
+                success: true
+                message: "Service is ready"
+                data:
+                  ready: true
+                timestamp: "2023-11-18T00:15:00.000Z"
+        503:
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Kubernetes liveness probe endpoint - checks if service is alive
+      responses:
+        200:
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          alive:
+                            type: boolean
+              example:
+                success: true
+                message: "Service is alive"
+                data:
+                  alive: true
+                timestamp: "2023-11-18T00:15:00.000Z"

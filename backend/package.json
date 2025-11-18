@@ -1,53 +1,66 @@
 {
   "name": "hana-ai-backend",
   "version": "1.0.0",
-  "description": "Backend API for Hana Salon Booking System",
+  "description": "Node.js Express TypeScript backend for Hana AI salon booking system",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
     "test": "jest",
-    "type-check": "tsc --noEmit",
+    "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "docker:build": "docker build -t hana-backend .",
-    "docker:run": "docker run -p 3060:3060 --env-file .env hana-backend",
-    "docker:dev": "docker-compose -f ../docker-compose.yml -f ../docker-compose.dev.yml up backend"
+    "lint:fix": "eslint src/**/*.ts --fix"
   },
+  "keywords": [
+    "nodejs",
+    "express",
+    "typescript",
+    "salon",
+    "booking",
+    "api"
+  ],
+  "author": "Hana AI Team",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
     "dotenv": "^16.3.1",
-    "axios": "^1.6.2",
+    "compression": "^1.7.4",
     "express-rate-limit": "^7.1.5",
-    "express-validator": "^7.0.1",
-    "uuid": "^9.0.1"
+    "joi": "^17.11.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
     "@types/morgan": "^1.9.9",
-    "@types/uuid": "^9.0.7",
-    "@types/node": "^20.10.4",
-    "typescript": "^5.3.3",
-    "ts-node": "^10.9.1",
-    "nodemon": "^3.0.2",
-    "jest": "^29.7.0",
+    "@types/compression": "^1.7.5",
+    "@types/node": "^20.10.0",
     "@types/jest": "^29.5.8",
+    "@types/supertest": "^2.0.16",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.6",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1",
+    "rimraf": "^5.0.5",
     "supertest": "^6.3.3",
-    "@types/supertest": "^2.0.16"
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.3.2"
   },
-  "keywords": [
-    "nail-salon",
-    "booking",
-    "api",
-    "express",
-    "ai",
-    "typescript"
-  ],
-  "author": "Hana Salon Team",
-  "license": "MIT"
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
 }

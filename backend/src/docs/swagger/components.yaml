@@ -1,0 +1,122 @@
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the request was successful
+        data:
+          type: object
+          description: Response data (varies by endpoint)
+        message:
+          type: string
+          description: Human-readable message
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO timestamp of the response
+      required: [success, timestamp]
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        timestamp:
+          type: string
+          format: date-time
+        statusCode:
+          type: integer
+          description: HTTP status code
+      required: [success, error, message, timestamp, statusCode]
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Overall health status
+        timestamp:
+          type: string
+          format: date-time
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+        version:
+          type: string
+          description: Application version
+        environment:
+          type: string
+          description: Current environment
+        services:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [connected, disconnected]
+            aiService:
+              type: string
+              enum: [connected, disconnected]
+      required: [status, timestamp, uptime, version, environment]
+
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: BAD_REQUEST
+            message: Invalid request parameters
+            timestamp: "2023-11-18T00:15:00.000Z"
+            statusCode: 400
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: UNAUTHORIZED
+            message: Authentication required
+            timestamp: "2023-11-18T00:15:00.000Z"
+            statusCode: 401
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: NOT_FOUND
+            message: Resource not found
+            timestamp: "2023-11-18T00:15:00.000Z"
+            statusCode: 404
+
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error: INTERNAL_ERROR
+            message: Internal server error
+            timestamp: "2023-11-18T00:15:00.000Z"
+            statusCode: 500
