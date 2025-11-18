@@ -107,23 +107,161 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response): 
   }
 });
 
+// Input validation schema
+const validateBookingInput = (data: any) => {
+  const errors: string[] = [];
+
+  // Required fields
+  if (!data.customerId) errors.push('customerId is required');
+  if (!data.services || !Array.isArray(data.services) || data.services.length === 0) {
+    errors.push('services array is required and must contain at least one service');
+  }
+  if (!data.appointmentDate) errors.push('appointmentDate is required');
+  if (!data.startTime) errors.push('startTime is required');
+  if (!data.endTime) errors.push('endTime is required');
+
+  // Validate time format
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (data.startTime && !timeRegex.test(data.startTime)) {
+    errors.push('startTime must be in HH:MM format');
+  }
+  if (data.endTime && !timeRegex.test(data.endTime)) {
+    errors.push('endTime must be in HH:MM format');
+  }
+
+  // Validate appointment date
+  if (data.appointmentDate) {
+    const appointmentDate = new Date(data.appointmentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (appointmentDate < today) {
+      errors.push('appointmentDate cannot be in the past');
+    }
+  }
+
+  // Validate services array structure
+  if (data.services && Array.isArray(data.services)) {
+    data.services.forEach((service: any, index: number) => {
+      if (!service.serviceId) errors.push(`services[${index}].serviceId is required`);
+      if (!service.technicianId) errors.push(`services[${index}].technicianId is required`);
+      if (service.duration && (typeof service.duration !== 'number' || service.duration < 1)) {
+        errors.push(`services[${index}].duration must be a positive number`);
+      }
+      if (service.price && (typeof service.price !== 'number' || service.price < 0)) {
+        errors.push(`services[${index}].price must be a non-negative number`);
+      }
+    });
+  }
+
+  // Validate optional fields
+  if (data.notes && typeof data.notes !== 'string') {
+    errors.push('notes must be a string');
+  }
+  if (data.customerNotes && typeof data.customerNotes !== 'string') {
+    errors.push('customerNotes must be a string');
+  }
+  if (data.paymentMethod && !['cash', 'card', 'online', 'gift_card'].includes(data.paymentMethod)) {
+    errors.push('paymentMethod must be one of: cash, card, online, gift_card');
+  }
+
+  return errors;
+};
+
+// Validate services array and related data
+const validateServicesArray = async (services: any[]) => {
+  try {
+    const validatedServices = [];
+    let totalDuration = 0;
+    let totalPrice = 0;
+    const technicianIds = new Set();
+    const serviceIds = new Set();
+
+    for (let i = 0; i < services.length; i++) {
+      const serviceData = services[i];
+      
+      // Validate service exists
+      const service = await Service.findById(serviceData.serviceId);
+      if (!service) {
+        return { isValid: false, error: `Service not found: ${serviceData.serviceId}` };
+      }
+
+      // Validate technician exists and is active
+      const technician = await Technician.findById(serviceData.technicianId);
+      if (!technician || !technician.isActive) {
+        return { isValid: false, error: `Invalid or inactive technician: ${serviceData.technicianId}` };
+      }
+
+      // Check if technician has the required skill for this service
+      if (service.required_skill_level) {
+        const skillLevels = ['Junior', 'Senior', 'Expert', 'Master'];
+        const requiredLevel = skillLevels.indexOf(service.required_skill_level);
+        const technicianLevel = skillLevels.indexOf(technician.skillLevel);
+        
+        if (technicianLevel < requiredLevel) {
+          return { 
+            isValid: false, 
+            error: `Technician ${technician.firstName} ${technician.lastName} (${technician.skillLevel}) does not meet required skill level (${service.required_skill_level}) for service ${service.name}` 
+          };
+        }
+      }
+
+      // Use service defaults if duration/price not provided
+      const duration = serviceData.duration || service.duration_minutes;
+      const price = serviceData.price || service.price;
+
+      validatedServices.push({
+        serviceId: serviceData.serviceId,
+        technicianId: serviceData.technicianId,
+        duration,
+        price,
+        status: serviceData.status || 'scheduled',
+        notes: serviceData.notes || ''
+      });
+
+      totalDuration += duration;
+      totalPrice += price;
+      technicianIds.add(serviceData.technicianId);
+      serviceIds.add(serviceData.serviceId);
+    }
+
+    // Check for technician conflicts (same technician for overlapping services)
+    if (technicianIds.size < services.length) {
+      // Same technician assigned to multiple services - need to validate timing
+      console.warn('Same technician assigned to multiple services - ensure proper scheduling');
+    }
+
+    return {
+      isValid: true,
+      validatedServices,
+      totalDuration,
+      totalPrice,
+      uniqueTechnicians: technicianIds.size,
+      uniqueServices: serviceIds.size
+    };
+
+  } catch (error) {
+    return { isValid: false, error: `Service validation failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+  }
+};
+
 // Create new booking
 export const createBooking = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       customerId,
-      technicianId,
-      serviceIds,
+      services,
       appointmentDate,
       startTime,
       endTime,
       notes,
-      customerNotes
+      customerNotes,
+      paymentMethod
     } = req.body;
 
-    // Basic validation
-    if (!customerId || !technicianId || !serviceIds || !appointmentDate || !startTime || !endTime) {
-      ResponseUtil.badRequest(res, 'Missing required fields: customerId, technicianId, serviceIds, appointmentDate, startTime, endTime');
+    // Input validation
+    const validationErrors = validateBookingInput(req.body);
+    if (validationErrors.length > 0) {
+      ResponseUtil.badRequest(res, `Validation errors: ${validationErrors.join(', ')}`);
       return;
     }
 
@@ -134,27 +272,31 @@ export const createBooking = asyncHandler(async (req: Request, res: Response): P
       return;
     }
 
-    // Validate technician exists and is active
-    const technician = await Technician.findById(technicianId);
-    if (!technician || !technician.isActive) {
-      ResponseUtil.badRequest(res, 'Invalid or inactive technician');
+    // Validate and process services
+    const serviceValidation = await validateServicesArray(services);
+    if (!serviceValidation.isValid) {
+      ResponseUtil.badRequest(res, serviceValidation.error);
       return;
     }
 
-    // Validate services exist and calculate totals
-    const services = await Service.find({ _id: { $in: serviceIds } });
-    if (services.length !== serviceIds.length) {
-      ResponseUtil.badRequest(res, 'One or more invalid service IDs');
+    const { validatedServices, totalDuration, totalPrice } = serviceValidation;
+    
+    // Ensure we have valid totals
+    if (typeof totalDuration !== 'number' || typeof totalPrice !== 'number') {
+      ResponseUtil.badRequest(res, 'Invalid service duration or price calculation');
       return;
     }
-
-    const totalDuration = services.reduce((sum, service) => sum + service.duration_minutes, 0);
-    const totalPrice = services.reduce((sum, service) => sum + service.price, 0);
 
     // Calculate duration from start and end time
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     const [endHours, endMinutes] = endTime.split(':').map(Number);
     const calculatedDuration = (endHours * 60 + endMinutes) - (startHours * 60 + startMinutes);
+
+    // Validate time logic
+    if (calculatedDuration <= 0) {
+      ResponseUtil.badRequest(res, 'End time must be after start time');
+      return;
+    }
 
     // Validate time duration matches service duration (allow 15 min buffer)
     if (Math.abs(calculatedDuration - totalDuration) > 15) {
@@ -164,13 +306,13 @@ export const createBooking = asyncHandler(async (req: Request, res: Response): P
 
     const bookingData = {
       customerId,
-      technicianId,
-      serviceIds,
+      services: validatedServices,
       appointmentDate: new Date(appointmentDate),
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       totalDuration: calculatedDuration,
       totalPrice,
+      paymentMethod,
       notes: notes?.trim(),
       customerNotes: customerNotes?.trim()
     };
@@ -180,8 +322,8 @@ export const createBooking = asyncHandler(async (req: Request, res: Response): P
     // Populate the created booking for response
     const populatedBooking = await Booking.findById(newBooking._id)
       .populate('customerId', 'firstName lastName email')
-      .populate('technicianId', 'firstName lastName employeeId')
-      .populate('serviceIds', 'name price');
+      .populate('services.technicianId', 'firstName lastName employeeId')
+      .populate('services.serviceId', 'name price duration_minutes');
     
     logger.info(`Created new booking: ${newBooking._id}`);
     
