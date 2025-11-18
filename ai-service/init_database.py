@@ -3,7 +3,7 @@
 Initialize MongoDB database with salon data
 """
 
-from database import DatabaseManager, Service, Technician, SkillLevel, ServiceCategory
+from database import DatabaseManager, Service, Technician, SkillLevel, ServiceCategory, Customer, Booking
 from salon_data import services, technicians
 
 def init_database():
@@ -66,12 +66,117 @@ def init_database():
         technician_id_mapping[old_tech.id] = new_id
         print(f"  ✅ {technician.name} ({technician.skill_level}) -> {new_id}")
     
-    # Print summary
+    # Insert sample customers for testing
+    print("👥 Inserting sample customers...")
+    sample_customers = [
+        Customer(
+            name="Sarah Johnson",
+            phone="555-123-4567",
+            email="sarah.johnson@email.com",
+            preferences={"preferred_technician": "Emma Thompson"},
+            booking_history=[]
+        ),
+        Customer(
+            name="Michael Chen",
+            phone="555-987-6543",
+            email="michael.chen@email.com",
+            preferences={"preferred_service": "Gel Manicure"},
+            booking_history=[]
+        ),
+        Customer(
+            name="Emily Davis",
+            phone="555-456-7890",
+            email="emily.davis@email.com",
+            preferences={},
+            booking_history=[]
+        ),
+        Customer(
+            name="John Smith",
+            phone=None,  # Customer without phone
+            email="john.smith@email.com",
+            preferences={"preferred_technician": "Isabella Rodriguez"},
+            booking_history=[]
+        )
+    ]
+    
+    customer_ids = []
+    for customer in sample_customers:
+        customer_id = db.create_customer(customer)
+        customer_ids.append(customer_id)
+        print(f"  ✅ {customer.name} -> {customer_id}")
+    
+    # Insert sample bookings for testing
+    print("� Inserting sample bookings...")
+    from datetime import datetime, timedelta
+    
+    # Get some services and technicians for bookings
+    gel_service = db.get_service_by_name("Gel Manicure")
+    basic_service = db.get_service_by_name("Classic Manicure")
+    emma = db.get_technician_by_name("Emma Thompson")
+    isabella = db.get_technician_by_name("Isabella Rodriguez")
+    
+    sample_bookings = []
+    if gel_service and basic_service and emma and isabella:
+        sample_bookings = [
+            Booking(
+                customer_id=customer_ids[0],  # Sarah Johnson
+                service_id=gel_service._id,
+                technician_id=emma._id,
+                date="2024-12-20",
+                time="14:00",
+                duration_minutes=gel_service.duration_minutes,
+                total_cost=db.calculate_total_cost(gel_service._id, emma._id),
+                status="confirmed",
+                confirmation_id="SPA-20241220140000",
+                notes="Booked via test data - Gel Manicure with Emma"
+            ),
+            Booking(
+                customer_id=customer_ids[1],  # Michael Chen
+                service_id=basic_service._id,
+                technician_id=isabella._id,
+                date="2024-12-21",
+                time="10:30",
+                duration_minutes=basic_service.duration_minutes,
+                total_cost=db.calculate_total_cost(basic_service._id, isabella._id),
+                status="confirmed",
+                confirmation_id="SPA-20241221103000",
+                notes="Booked via test data - Classic Manicure with Isabella"
+            ),
+            Booking(
+                customer_id=customer_ids[2],  # Emily Davis
+                service_id=gel_service._id,
+                technician_id=emma._id,
+                date="2024-12-22",
+                time="16:00",
+                duration_minutes=gel_service.duration_minutes,
+                total_cost=db.calculate_total_cost(gel_service._id, emma._id),
+                status="completed",
+                confirmation_id="SPA-20241222160000",
+                notes="Booked via test data - Completed Gel Manicure"
+            )
+        ]
+        
+        booking_ids = []
+        for booking in sample_bookings:
+            booking_id = db.create_booking(booking)
+            booking_ids.append(booking_id)
+            customer = db.get_customer_by_id(booking.customer_id)
+            service = db.get_service_by_id(booking.service_id)
+            print(f"  ✅ {customer.name} - {service.name} -> {booking_id}")
+            
+            # Update customer booking history
+            if customer.booking_history is None:
+                customer.booking_history = []
+            customer.booking_history.append(booking_id)
+            db.update_customer(customer._id, {"booking_history": customer.booking_history})
+
     print("\n📊 Database Initialization Summary:")
-    print(f"  Services: {len(service_id_mapping)}")
-    print(f"  Technicians: {len(technician_id_mapping)}")
-    print(f"  Categories: {len(set(s.category for s in services))}")
-    print(f"  Skill Levels: {len(set(t.skill_level.value for t in technicians))}")
+    print(f"  Services: {len(services)}")
+    print(f"  Technicians: {len(technicians)}")
+    print(f"  Customers: {len(sample_customers)}")
+    print(f"  Bookings: {len(sample_bookings)}")
+    print(f"  Categories: {len(set(service.category for service in services))}")
+    print(f"  Skill Levels: {len(set(tech.skill_level for tech in technicians))}")
     
     # Print ID mappings for reference
     print("\n🔗 Service ID Mappings:")

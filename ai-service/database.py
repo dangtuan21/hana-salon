@@ -16,6 +16,10 @@ from bson import ObjectId
 from dataclasses import dataclass, asdict
 from enum import Enum
 import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Database configuration
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017/")

@@ -137,6 +137,8 @@ async def root():
             "process_booking": "/process-booking",
             "validate_booking": "/validate-booking",
             "get_booking": "/booking/{confirmation_id}",
+            "get_customer": "/customer/{customer_id}",
+            "debug_customers": "/debug/customers",
             "docs": "/docs"
         }
     }
@@ -297,6 +299,79 @@ async def get_booking_by_confirmation(confirmation_id: str):
         }
     }
 
+@app.get("/customer/{customer_id}")
+async def get_customer_by_id(customer_id: str):
+    """Get customer details by customer ID"""
+    from database import get_db_manager
+    
+    try:
+        print(f"🔍 Looking for customer ID: {customer_id}")
+        db = get_db_manager()
+        
+        # Debug: Check database connection
+        total_customers = db.customers.count_documents({})
+        print(f"📊 Total customers in database: {total_customers}")
+        
+        # Try to find customer
+        customer = db.get_customer_by_id(customer_id)
+        print(f"🎯 Customer found: {customer.name if customer else 'None'}")
+        
+        if not customer:
+            # Try raw query as fallback
+            from bson import ObjectId
+            try:
+                raw_customer = db.customers.find_one({"_id": ObjectId(customer_id)})
+                print(f"🔍 Raw query result: {raw_customer.get('name') if raw_customer else 'None'}")
+                
+                if raw_customer:
+                    # Convert raw document to Customer object manually
+                    raw_customer['_id'] = str(raw_customer['_id'])
+                    from database import Customer
+                    customer = Customer(**raw_customer)
+                    print(f"✅ Converted raw customer: {customer.name}")
+                else:
+                    raise HTTPException(status_code=404, detail="Customer not found")
+            except Exception as raw_error:
+                print(f"❌ Raw query failed: {raw_error}")
+                raise HTTPException(status_code=404, detail="Customer not found")
+        
+        return {
+            "customer": {
+                "id": customer._id,
+                "name": customer.name,
+                "phone": customer.phone,
+                "email": customer.email,
+                "preferences": customer.preferences or {},
+                "booking_history": customer.booking_history or [],
+                "created_at": customer.created_at.isoformat() if customer.created_at else None
+            }
+        }
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404)
+        raise
+    except Exception as e:
+        print(f"❌ Error in customer endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.get("/debug/customers")
+async def debug_customers():
+    """Debug endpoint to list all customers"""
+    from database import get_db_manager
+    
+    db = get_db_manager()
+    customers = list(db.customers.find({}))
+    
+    return {
+        "total_customers": len(customers),
+        "customers": [
+            {
+                "id": str(customer["_id"]),
+                "name": customer.get("name", "N/A"),
+                "phone": customer.get("phone", "N/A")
+            }
+            for customer in customers
+        ]
+    }
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8060))
