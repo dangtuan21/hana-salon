@@ -11,6 +11,8 @@
     "prebuild": "npm run clean",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:db": "ts-node -r tsconfig-paths/register src/test/test-database.ts",
+    "test:empty": "ts-node -r tsconfig-paths/register src/test/test-empty-services.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
@@ -33,6 +35,8 @@
     "compression": "^1.7.4",
     "express-rate-limit": "^7.1.5",
     "joi": "^17.11.0",
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.0.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
     "winston": "^3.11.0"

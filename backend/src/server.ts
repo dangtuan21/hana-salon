@@ -9,6 +9,7 @@ import { corsOptions, helmetConfig, createRateLimiter } from '@/middleware/secur
 import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
 import routes from '@/routes';
 import logger from '@/utils/logger';
+import database from '@/config/database';
 
 // Load environment variables
 dotenv.config();
@@ -75,31 +76,46 @@ app.get('/', (req, res) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// Graceful shutdown handling
-const server = app.listen(PORT, HOST, () => {
-  logger.info(`🚀 Server running on http://${HOST}:${PORT}`);
-  logger.info(`📚 API documentation available at http://${HOST}:${PORT}${API_PREFIX}`);
-  logger.info(`📖 Swagger UI: http://${HOST}:${PORT}/api-docs`);
-  logger.info(`🏥 Health check: http://${HOST}:${PORT}${API_PREFIX}/health`);
-  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Initialize database connection and start server
+const startServer = async (): Promise<void> => {
+  try {
+    // Connect to MongoDB
+    await database.connect();
+    
+    // Start the server
+    const server = app.listen(PORT, HOST, () => {
+      logger.info(`🚀 Server running on http://${HOST}:${PORT}`);
+      logger.info(`📚 API documentation available at http://${HOST}:${PORT}${API_PREFIX}`);
+      logger.info(`📖 Swagger UI: http://${HOST}:${PORT}/api-docs`);
+      logger.info(`🏥 Health check: http://${HOST}:${PORT}${API_PREFIX}/health`);
+      logger.info(`🗄️  Services API: http://${HOST}:${PORT}${API_PREFIX}/services`);
+      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
-    process.exit(0);
-  });
-});
+    // Graceful shutdown handling
+    const gracefulShutdown = async (signal: string): Promise<void> => {
+      logger.info(`${signal} received, shutting down gracefully`);
+      
+      server.close(async () => {
+        try {
+          await database.disconnect();
+          logger.info('Process terminated');
+          process.exit(0);
+        } catch (error) {
+          logger.error('Error during shutdown:', error);
+          process.exit(1);
+        }
+      });
+    };
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
-    process.exit(0);
-  });
-});
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -112,5 +128,7 @@ process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
+
+startServer();
 
 export default app;

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { ResponseUtil } from '@/utils/response';
 import { HealthCheckResponse } from '@/types';
 import { asyncHandler } from '@/middleware/errorHandler';
+import database from '@/config/database';
 
 export const healthCheck = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const uptime = process.uptime();
@@ -15,8 +16,7 @@ export const healthCheck = asyncHandler(async (req: Request, res: Response): Pro
     version,
     environment,
     services: {
-      // Add database and AI service checks here when implemented
-      database: 'disconnected', // Will be updated when database is connected
+      database: database.getConnectionStatus() ? 'connected' : 'disconnected',
       aiService: 'disconnected' // Will be updated when AI service integration is added
     }
   };
