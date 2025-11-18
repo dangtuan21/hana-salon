@@ -96,6 +96,10 @@ class Booking:
     updated_at: Optional[datetime] = None
 
 class DatabaseManager:
+    """
+    Read-only database manager for AI booking service.
+    Database initialization and schema management should be handled by the backend service.
+    """
     def __init__(self):
         self.client = MongoClient(MONGODB_URL)
         self.db = self.client[DATABASE_NAME]
@@ -103,43 +107,8 @@ class DatabaseManager:
         self.technicians = self.db.technicians
         self.customers = self.db.customers
         self.bookings = self.db.bookings
-        
-        # Create indexes for better performance
-        self._create_indexes()
     
-    def _create_indexes(self):
-        """Create database indexes for better query performance"""
-        # Services indexes
-        self.services.create_index("name")
-        self.services.create_index("category")
-        self.services.create_index("required_skill_level")
-        
-        # Technicians indexes
-        self.technicians.create_index("name")
-        self.technicians.create_index("skill_level")
-        self.technicians.create_index("is_available")
-        self.technicians.create_index("specialties")
-        
-        # Customers indexes
-        # Note: No unique constraint on phone to allow multiple customers without phone numbers
-        self.customers.create_index("email")
-        
-        # Bookings indexes
-        self.bookings.create_index("customer_id")
-        self.bookings.create_index("service_id")
-        self.bookings.create_index("technician_id")
-        self.bookings.create_index("date")
-        self.bookings.create_index("confirmation_id", unique=True)
-    
-    # Service operations
-    def create_service(self, service: Service) -> str:
-        """Create a new service"""
-        service.created_at = datetime.utcnow()
-        service.updated_at = datetime.utcnow()
-        service_dict = asdict(service)
-        service_dict.pop('_id', None)
-        result = self.services.insert_one(service_dict)
-        return str(result.inserted_id)
+    # Service operations (read-only)
     
     def get_service_by_id(self, service_id: str) -> Optional[Service]:
         """Get service by ID"""
@@ -176,15 +145,7 @@ class DatabaseManager:
             services.append(Service(**doc))
         return services
     
-    # Technician operations
-    def create_technician(self, technician: Technician) -> str:
-        """Create a new technician"""
-        technician.created_at = datetime.utcnow()
-        technician.updated_at = datetime.utcnow()
-        tech_dict = asdict(technician)
-        tech_dict.pop('_id', None)
-        result = self.technicians.insert_one(tech_dict)
-        return str(result.inserted_id)
+    # Technician operations (read-only)
     
     def get_technician_by_id(self, tech_id: str) -> Optional[Technician]:
         """Get technician by ID"""
@@ -244,16 +205,7 @@ class DatabaseManager:
         
         return technicians
     
-    # Customer operations
-    def create_customer(self, customer: Customer) -> str:
-        """Create a new customer"""
-        customer.created_at = datetime.utcnow()
-        customer.updated_at = datetime.utcnow()
-        customer.booking_history = customer.booking_history or []
-        customer_dict = asdict(customer)
-        customer_dict.pop('_id', None)
-        result = self.customers.insert_one(customer_dict)
-        return str(result.inserted_id)
+    # Customer operations (read-only)
     
     def get_customer_by_phone(self, phone: str) -> Optional[Customer]:
         """Get customer by phone number"""
@@ -276,27 +228,7 @@ class DatabaseManager:
             pass
         return None
     
-    def update_customer(self, customer_id: str, updates: Dict[str, Any]) -> bool:
-        """Update customer information"""
-        updates['updated_at'] = datetime.utcnow()
-        try:
-            result = self.customers.update_one(
-                {"_id": ObjectId(customer_id)}, 
-                {"$set": updates}
-            )
-            return result.modified_count > 0
-        except:
-            return False
-    
-    # Booking operations
-    def create_booking(self, booking: Booking) -> str:
-        """Create a new booking"""
-        booking.created_at = datetime.utcnow()
-        booking.updated_at = datetime.utcnow()
-        booking_dict = asdict(booking)
-        booking_dict.pop('_id', None)
-        result = self.bookings.insert_one(booking_dict)
-        return str(result.inserted_id)
+    # Booking operations (read-only)
     
     def get_booking_by_id(self, booking_id: str) -> Optional[Booking]:
         """Get booking by ID"""
@@ -324,17 +256,6 @@ class DatabaseManager:
             doc['_id'] = str(doc['_id'])
             bookings.append(Booking(**doc))
         return bookings
-    
-    def update_booking_status(self, booking_id: str, status: str) -> bool:
-        """Update booking status"""
-        try:
-            result = self.bookings.update_one(
-                {"_id": ObjectId(booking_id)}, 
-                {"$set": {"status": status, "updated_at": datetime.utcnow()}}
-            )
-            return result.modified_count > 0
-        except:
-            return False
     
     # Utility methods
     def calculate_total_cost(self, service_id: str, technician_id: str) -> float:
