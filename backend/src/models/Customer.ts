@@ -56,7 +56,7 @@ const CustomerSchema = new Schema<ICustomer>({
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
-    match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number']
+    match: [/^(\d{3}-\d{3}-\d{4}|\d+)$/, 'Please enter a valid phone number (XXX-XXX-XXXX or digits only)']
   },
   dateOfBirth: {
     type: Date,
@@ -158,8 +158,18 @@ CustomerSchema.virtual('fullName').get(function() {
   return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
 });
 
-// Pre-save middleware to update the updated_at field
+// Pre-save middleware to format phone and update timestamp
 CustomerSchema.pre('save', function(next) {
+  // Format phone number consistently
+  if (this.phone) {
+    const digits = this.phone.replace(/\D/g, ''); // Remove all non-digits
+    if (digits.length === 10) {
+      this.phone = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else {
+      this.phone = digits; // Keep as digits only for other lengths
+    }
+  }
+  
   this.updated_at = new Date();
   next();
 });

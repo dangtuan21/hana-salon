@@ -117,6 +117,7 @@ class BookingState:
     # Available options (populated during conversation)
     available_technicians: List[TechnicianInfo] = field(default_factory=list)
     available_services: List[ServiceInfo] = field(default_factory=list)
+    alternative_times: List[Dict[str, Any]] = field(default_factory=list)  # Alternative time slots when conflict occurs
     
     # Confirmation status for date/time parsing
     dateTimeConfirmationStatus: ConfirmationStatus = ConfirmationStatus.PENDING
@@ -202,7 +203,8 @@ class BookingState:
                     "price": svc.price if hasattr(svc, 'price') else svc.get('price'),
                     "description": svc.description if hasattr(svc, 'description') else svc.get('description')
                 } for svc in self.available_services
-            ]
+            ],
+            "alternative_times": self.alternative_times
         }
     
     @classmethod
@@ -271,6 +273,9 @@ class BookingState:
                 description=svc_data["description"]
             )
             booking_state.available_services.append(service)
+        
+        # Set alternative times (already in correct format)
+        booking_state.alternative_times = data.get("alternative_times", [])
         
         # Convert rating if present
         rating_data = data.get("rating")

@@ -140,10 +140,21 @@ class ConversationHandler:
                         break
                 
                 if availability_result and "CHECKED_AVAILABILITY" in str(availability_result):
-                    response_text = "Perfect! Your appointment is available and confirmed. Let me create your booking."
-                    # Trigger booking creation
-                    booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
-                    actions_taken.extend(booking_actions)
+                    # Check if there was a conflict or if booking is available
+                    if "Conflict detected" in str(availability_result):
+                        # Extract alternative times from the result
+                        alternatives_text = str(availability_result).split("Available alternatives on")[1] if "Available alternatives on" in str(availability_result) else "some alternative times"
+                        response_text = f"I found a scheduling conflict with your requested time. However, I have some great alternatives available{alternatives_text}. Which time would work better for you?"
+                    elif "No availability" in str(availability_result):
+                        response_text = "I'm sorry, but there's no availability on your requested date. Could you try a different date?"
+                    elif str(availability_result) == "ActionResult.CHECKED_AVAILABILITY":
+                        # No conflict, booking is available
+                        response_text = "Perfect! Your appointment is available and confirmed. Let me create your booking."
+                        # Trigger booking creation
+                        booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
+                        actions_taken.extend(booking_actions)
+                    else:
+                        response_text = "Let me check the availability details and get back to you."
                 else:
                     response_text = "I'm checking availability for your appointment. Please wait a moment..."
                 

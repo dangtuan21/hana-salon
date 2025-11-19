@@ -154,8 +154,21 @@ class ActionExecutor:
             return ActionResult.CHECKED_AVAILABILITY
         else:
             print(f"❌ Some services unavailable: {', '.join(unavailable_services)}")
-            # TODO: Suggest alternative times
-            return f"{ActionResult.CHECKED_AVAILABILITY}: Some services unavailable"
+            
+            # Find alternative time slots on the same day
+            alternative_times = self._find_alternative_times(booking_state, parsed_date)
+            
+            if alternative_times:
+                alternatives_text = ", ".join([f"{time['time']} ({time['technician']})" for time in alternative_times[:3]])
+                print(f"💡 Found alternative times: {alternatives_text}")
+                
+                # Store alternatives in booking state for LLM to use
+                booking_state.alternative_times = alternative_times[:3]  # Top 3 alternatives
+                session_state["booking_state"] = booking_state.to_dict()
+                
+                return f"{ActionResult.CHECKED_AVAILABILITY}: Conflict detected. Available alternatives on {parsed_date}: {alternatives_text}"
+            else:
+                return f"{ActionResult.CHECKED_AVAILABILITY}: No availability on {parsed_date}. Please try a different date."
     
     def _find_best_technician(self, technicians: List[Dict], service_id: str, date: str, start_time: str, duration: int) -> Dict:
         """Find the best available technician for a service at the specified time"""
@@ -380,36 +393,13 @@ class ActionExecutor:
         # Remove all non-digit characters
         digits = ''.join(filter(str.isdigit, phone))
         
-        # Handle different phone number lengths - try multiple formats
+        # Simple formatting: only add dashes for 10-digit numbers
         if len(digits) == 10:
-            # Try different common formats
-            formats_to_try = [
-                f"+1{digits}",  # International format
-                f"{digits}",    # Just digits
-                f"({digits[:3]}) {digits[3:6]}-{digits[6:]}",  # (XXX) XXX-XXXX
-                f"{digits[:3]}.{digits[3:6]}.{digits[6:]}",    # XXX.XXX.XXXX
-                f"{digits[:3]} {digits[3:6]} {digits[6:]}"     # XXX XXX XXXX
-            ]
-            # Return the first format for now, we'll try others if this fails
-            return formats_to_try[0]  # Try international format first
-        elif len(digits) == 11 and digits[0] == '1':
-            # Already has country code
-            return f"+{digits}"
-        elif len(digits) == 7:
-            # Add default area code
-            return f"+1555{digits}"
-        elif len(digits) < 7:
-            # Too short, pad with zeros and add area code
-            padded = digits.ljust(7, '0')
-            return f"+1555{padded}"
+            # Format as XXX-XXX-XXXX
+            return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
         else:
-            # Too long or unusual format, try to extract 10 digits
-            if len(digits) >= 10:
-                # Take the last 10 digits
-                digits = digits[-10:]
-                return f"+1{digits}"
-            else:
-                return phone
+            # Keep as-is for all other lengths
+            return digits
     
     def _calculate_cost(self, session_state: Dict) -> str:
         """Calculate cost for requested services"""
@@ -448,3 +438,78 @@ class ActionExecutor:
         booking_state["booking_status"] = BookingStatus.CANCELLED
         booking_state["confirmation_id"] = ""
         return ActionResult.BOOKING_CANCELLED
+    
+    def _find_alternative_times(self, booking_state: BookingState, date: str) -> List[Dict]:
+        """Find alternative available time slots on the same day"""
+        alternatives = []
+        
+        # Define business hours (9 AM to 6 PM)
+        business_start = 9  # 9:00 AM
+        business_end = 18   # 6:00 PM
+        slot_duration = 30  # 30-minute slots
+        
+        print(f"🔍 Searching for alternatives on {date}...")
+        
+        try:
+            # Get all technicians for the first service (assuming all services need similar technicians)
+            first_service = booking_state.services[0] if booking_state.services else None
+            if not first_service:
+                return alternatives
+                
+            service_id = first_service.serviceId
+            technicians = self.api_client.get_technicians_for_service(service_id)
+            
+            if not technicians:
+                return alternatives
+            total_duration = booking_state.totalDuration
+            
+            # Check each 30-minute slot during business hours
+            for hour in range(business_start, business_end):
+                for minute in [0, 30]:  # Check :00 and :30
+                    if hour == business_end - 1 and minute == 30:
+                        continue  # Don't start appointments too close to closing
+                        
+                    slot_time = f"{hour:02d}:{minute:02d}"
+                    
+                    # Check if this slot can accommodate the total appointment duration
+                    slot_hour = hour
+                    slot_minute = minute
+                    end_minute = slot_minute + total_duration
+                    end_hour = slot_hour + (end_minute // 60)
+                    end_minute = end_minute % 60
+                    
+                    # Skip if appointment would go past business hours
+                    if end_hour > business_end or (end_hour == business_end and end_minute > 0):
+                        continue
+                    
+                    # Find available technician for this slot
+                    for technician in technicians:
+                        tech_id = technician.get('_id')
+                        tech_name = f"{technician.get('firstName')} {technician.get('lastName')}"
+                        
+                        # Check availability for this technician at this time
+                        is_available = self.api_client.check_technician_availability(
+                            tech_id, date, slot_time, total_duration
+                        )
+                        
+                        if is_available and is_available.get('available'):
+                            alternatives.append({
+                                'time': slot_time,
+                                'technician': tech_name,
+                                'technician_id': tech_id,
+                                'end_time': f"{end_hour:02d}:{end_minute:02d}"
+                            })
+                            break  # Found one technician for this slot, move to next slot
+                    
+                    # Limit to reasonable number of alternatives
+                    if len(alternatives) >= 5:
+                        break
+                        
+                if len(alternatives) >= 5:
+                    break
+                    
+        except Exception as e:
+            print(f"⚠️ Error finding alternatives: {e}")
+            
+        print(f"💡 Found {len(alternatives)} alternative time slots")
+        return alternatives
