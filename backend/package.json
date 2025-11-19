@@ -14,6 +14,9 @@
     "test:db": "ts-node -r tsconfig-paths/register src/test/test-database.ts",
     "test:empty": "ts-node -r tsconfig-paths/register src/test/test-empty-services.ts",
     "test:crud": "ts-node -r tsconfig-paths/register src/test/test-crud-operations.ts",
+    "test:calendar": "ts-node -r tsconfig-paths/register src/test/test-calendar-integration.ts",
+    "test:booking-sync": "ts-node -r tsconfig-paths/register src/test/test-booking-calendar-sync.ts",
+    "test:simple-sync": "ts-node -r tsconfig-paths/register src/test/test-simple-booking-sync.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
@@ -35,6 +38,8 @@
     "express": "^4.18.2",
     "express-async-handler": "^1.2.0",
     "express-rate-limit": "^7.1.5",
+    "google-auth-library": "^10.5.0",
+    "googleapis": "^166.0.0",
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
     "mongodb": "^6.3.0",

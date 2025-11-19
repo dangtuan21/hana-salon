@@ -28,6 +28,9 @@ export interface IBooking extends Document {
   cancellationReason?: string;
   reminderSent: boolean;
   confirmationSent: boolean;
+  calendarEventId?: string; // Google Calendar event ID
+  calendarSyncStatus: 'pending' | 'synced' | 'failed' | 'disabled';
+  calendarLastSyncAt?: Date;
   rating?: {
     score: number;
     comment?: string;
@@ -158,6 +161,18 @@ const BookingSchema = new Schema<IBooking>({
   confirmationSent: {
     type: Boolean,
     default: false
+  },
+  calendarEventId: {
+    type: String,
+    trim: true
+  },
+  calendarSyncStatus: {
+    type: String,
+    enum: ['pending', 'synced', 'failed', 'disabled'],
+    default: 'pending'
+  },
+  calendarLastSyncAt: {
+    type: Date
   },
   rating: {
     score: {

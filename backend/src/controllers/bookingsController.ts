@@ -6,6 +6,7 @@ import { Technician } from '@/models/Technician';
 import { Service } from '@/models/Service';
 import { ResponseUtil } from '@/utils/response';
 import logger from '@/utils/logger';
+import { BookingCalendarIntegration } from '@/services/BookingCalendarIntegration';
 
 // Get all bookings
 export const getAllBookings = asyncHandler(async (req: Request, res: Response): Promise<void> => {
@@ -327,6 +328,19 @@ export const createBooking = asyncHandler(async (req: Request, res: Response): P
     
     logger.info(`Created new booking: ${newBooking._id}`);
     
+    // Sync booking to Google Calendar (async, don't block response)
+    BookingCalendarIntegration.createCalendarEvent(newBooking)
+      .then((result) => {
+        if (result.success) {
+          logger.info(`Calendar event created for booking ${newBooking._id}: ${result.eventId}`);
+        } else {
+          logger.warn(`Failed to create calendar event for booking ${newBooking._id}: ${result.error}`);
+        }
+      })
+      .catch((error) => {
+        logger.error(`Error syncing booking ${newBooking._id} to calendar:`, error);
+      });
+    
     ResponseUtil.success(res, populatedBooking, 'Booking created successfully', 201);
     
   } catch (error: any) {
@@ -400,6 +414,19 @@ export const updateBooking = asyncHandler(async (req: Request, res: Response): P
 
     logger.info(`Updated booking: ${updatedBooking._id}`);
     
+    // Sync booking changes to Google Calendar (async, don't block response)
+    BookingCalendarIntegration.updateCalendarEvent(updatedBooking)
+      .then((result) => {
+        if (result.success) {
+          logger.info(`Calendar event updated for booking ${updatedBooking._id}`);
+        } else {
+          logger.warn(`Failed to update calendar event for booking ${updatedBooking._id}: ${result.error}`);
+        }
+      })
+      .catch((error) => {
+        logger.error(`Error updating calendar event for booking ${updatedBooking._id}:`, error);
+      });
+    
     ResponseUtil.success(res, updatedBooking, 'Booking updated successfully');
     
   } catch (error: any) {
@@ -440,6 +467,19 @@ export const cancelBooking = asyncHandler(async (req: Request, res: Response): P
     }
     
     logger.info(`Cancelled booking: ${cancelledBooking._id}`);
+    
+    // Delete calendar event for cancelled booking (async, don't block response)
+    BookingCalendarIntegration.deleteCalendarEvent(cancelledBooking)
+      .then((result) => {
+        if (result.success) {
+          logger.info(`Calendar event deleted for cancelled booking ${cancelledBooking._id}`);
+        } else {
+          logger.warn(`Failed to delete calendar event for booking ${cancelledBooking._id}: ${result.error}`);
+        }
+      })
+      .catch((error) => {
+        logger.error(`Error deleting calendar event for booking ${cancelledBooking._id}:`, error);
+      });
     
     ResponseUtil.success(res, cancelledBooking, 'Booking cancelled successfully');
     
