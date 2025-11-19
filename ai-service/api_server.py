@@ -174,9 +174,12 @@ from conversation_handler import conversation_handler
 
 @app.post("/conversation/start", response_model=ConversationResponse)
 async def start_conversation(request: ConversationStartRequest):
-    """Start a new conversational booking session"""
+    """Start a new conversation"""
     try:
+        print("=" * 80)
+        print(f"🚨 DEBUG: API ENDPOINT CALLED - START CONVERSATION")
         print(f"🗣️ Starting new conversation: {request.message}")
+        print("=" * 80)
         
         response = conversation_handler.start_conversation(
             message=request.message,
@@ -192,9 +195,12 @@ async def start_conversation(request: ConversationStartRequest):
 
 @app.post("/conversation/continue", response_model=ConversationResponse)
 async def continue_conversation(request: ConversationContinueRequest):
-    """Continue an existing conversational booking session"""
+    """Continue an existing conversation"""
     try:
+        print("=" * 80)
+        print(f"🚨 DEBUG: API ENDPOINT CALLED - CONTINUE CONVERSATION")
         print(f"🗣️ Continuing conversation {request.session_id}: {request.message}")
+        print("=" * 80)
         
         response = conversation_handler.continue_conversation(
             session_id=request.session_id,
@@ -253,7 +259,7 @@ async def clear_conversation(session_id: str):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8060))
+    port = int(os.getenv("PORT", 8060))  # AI service runs on 8060, backend on 3060
     host = os.getenv("HOST", "0.0.0.0")
     
     print(f"🚀 Starting Hana Salon Booking Service on {host}:{port}")

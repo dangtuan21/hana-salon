@@ -27,8 +27,9 @@ class BookingSystemLauncher:
         try:
             self.api_process = subprocess.Popen(
                 [sys.executable, "api_server.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                # Allow debug logs to pass through to terminal
+                stdout=None,
+                stderr=None,
                 text=True
             )
             
@@ -39,10 +40,7 @@ class BookingSystemLauncher:
                 print("✅ API server started successfully on http://localhost:8060")
                 return True
             else:
-                stdout, stderr = self.api_process.communicate()
-                print(f"❌ API server failed to start:")
-                print(f"STDOUT: {stdout}")
-                print(f"STDERR: {stderr}")
+                print(f"❌ API server failed to start (exit code: {self.api_process.returncode})")
                 return False
                 
         except Exception as e:
@@ -56,8 +54,9 @@ class BookingSystemLauncher:
         try:
             self.ui_process = subprocess.Popen(
                 [sys.executable, "gradio_ui.py"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                # Allow logs to pass through to terminal
+                stdout=None,
+                stderr=None,
                 text=True
             )
             
@@ -68,10 +67,7 @@ class BookingSystemLauncher:
                 print("✅ Gradio UI started successfully on http://localhost:7860")
                 return True
             else:
-                stdout, stderr = self.ui_process.communicate()
-                print(f"❌ Gradio UI failed to start:")
-                print(f"STDOUT: {stdout}")
-                print(f"STDERR: {stderr}")
+                print(f"❌ Gradio UI failed to start (exit code: {self.ui_process.returncode})")
                 return False
                 
         except Exception as e:

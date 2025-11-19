@@ -19,7 +19,7 @@ import database from '@/config/database';
 dotenv.config();
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '8060', 10);
+const PORT = parseInt(process.env.PORT || '3060', 10);
 const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || '8443', 10);
 const HOST = process.env.HOST || 'localhost';
 const API_PREFIX = process.env.API_PREFIX || '/api';
