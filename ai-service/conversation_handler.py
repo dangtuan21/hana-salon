@@ -15,7 +15,10 @@ from dotenv import load_dotenv
 
 # Import organized services and database classes
 from services import BackendAPIClient, parse_date, parse_time
+from services.booking_manager import BookingManager
+from services.action_executor import ActionExecutor
 from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair, ConfirmationStatus
+from database.enums import BookingAction, ActionResult
 
 # Load environment variables
 load_dotenv()
@@ -27,37 +30,6 @@ llm = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-class BookingAction(str, Enum):
-    """Enum for booking actions that can be executed"""
-    CHECK_AVAILABILITY = "check_availability"
-    CONFIRM_DATETIME = "confirm_datetime"
-    GET_TECHNICIANS = "get_technicians"
-    CREATE_BOOKING = "create_booking"
-    CALCULATE_COST = "calculate_cost"
-    GET_SERVICES = "get_services"
-    UPDATE_BOOKING = "update_booking"
-    CANCEL_BOOKING = "cancel_booking"
-
-class BookingStatus(str, Enum):
-    """Enum for booking confirmation status"""
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    CANCELLED = "cancelled"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-
-class ActionResult(str, Enum):
-    """Enum for action execution results"""
-    CHECKED_AVAILABILITY = "checked_availability"
-    RETRIEVED_TECHNICIANS = "retrieved_technicians"
-    BOOKING_CREATED = "booking_created"
-    BOOKING_NOT_READY = "booking_not_ready"
-    COST_CALCULATED = "cost_calculated"
-    SERVICES_RETRIEVED = "services_retrieved"
-    BOOKING_UPDATED = "booking_updated"
-    BOOKING_UPDATE_FAILED = "booking_update_failed"
-    BOOKING_CANCELLED = "booking_cancelled"
-    UNKNOWN_ACTION = "unknown_action"
 
 # Backend API client and session manager are now imported from organized modules
 
@@ -67,6 +39,8 @@ class ConversationHandler:
     def __init__(self, backend_url: str = "http://localhost:3060"):
         self.session_manager = SessionManager()
         self.api_client = BackendAPIClient(backend_url)
+        self.booking_manager = BookingManager()
+        self.action_executor = ActionExecutor(self.api_client)
     
     def start_conversation(self, message: str, customer_phone: str = None) -> Dict[str, Any]:
         """Start a new booking conversation"""
@@ -156,7 +130,7 @@ class ConversationHandler:
             if is_confirmation_response:
                 print(f"✅ Detected confirmation response: '{user_message}'")
                 # Automatically trigger confirm_datetime action
-                actions_taken = self._execute_actions(session_state, ["confirm_datetime"])
+                actions_taken = self.action_executor.execute_actions(session_state, ["confirm_datetime"])
                 
                 # Generate simple confirmation response
                 session_state["messages"].append({
@@ -177,7 +151,7 @@ class ConversationHandler:
             # Update booking state with LLM extracted information
             booking_updates = response_data.get("booking_state_updates", {})
             print(f"📋 LLM extracted updates: {booking_updates}")
-            self._update_booking_state(session_state, booking_updates)
+            self.booking_manager.update_booking_state(session_state, booking_updates)
             print(f"🗂️ Current booking state: {session_state['booking_state']}")
             
             # Check if we created a pending confirmation that needs LLM attention
@@ -223,7 +197,7 @@ class ConversationHandler:
             # Execute any needed actions
             requested_actions = response_data.get("actions_neededs", [])
             print(f"🎯 LLM requested actions: {requested_actions}")
-            actions_taken = self._execute_actions(session_state, requested_actions)
+            actions_taken = self.action_executor.execute_actions(session_state, requested_actions)
             
             # Add assistant message to history
             session_state["messages"].append({
@@ -386,424 +360,10 @@ class ConversationHandler:
         
         return context
     
-    def _update_booking_state(self, session_state: Dict, updates: Dict) -> None:
-        """Update booking state with LLM extracted information"""
-        
-        # Get BookingState object from session
-        booking_state_dict = session_state["booking_state"]
-        booking_state = BookingState.from_dict(booking_state_dict)
-        
-        # Track if we need to check for confirmation
-        date_updated = False
-        time_updated = False
-        
-        for key, value in updates.items():
-            if value and str(value).strip():  # Update if value is not empty
-                # Special handling for customer info - always update if provided
-                if key in ["customer_name", "customer_phone"] and value:
-                    old_value = getattr(booking_state, key, "")
-                    new_value = str(value).strip()
-                    setattr(booking_state, key, new_value)
-                    print(f"🔍 Updated {key}: '{old_value}' -> '{new_value}'")
-                # For other fields, only update if different
-                elif hasattr(booking_state, key):
-                    old_value = getattr(booking_state, key, "")
-                    if value != old_value:
-                        setattr(booking_state, key, value)
-                        print(f"📝 Updated {key}: {value}")
-                        
-                        # Track date/time updates
-                        if key == "date_requested":
-                            date_updated = True
-                        elif key == "time_requested":
-                            time_updated = True
-        
-        # Check if we need confirmation for new date/time
-        # BUT ONLY if there's no existing pending confirmation AND customer info is complete
-        customer_info_complete = booking_state.customer_name and booking_state.customer_phone
-        if (date_updated or time_updated) and booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING and not session_state.get("pending_confirmation") and customer_info_complete:
-            date = booking_state.date_requested
-            time = booking_state.time_requested
-            
-            if date and time:
-                from services.date_parser import parse_date, parse_time
-                parsed_date = parse_date(date)
-                parsed_time = parse_time(time)
-                
-                if parsed_date and parsed_time:
-                    needs_confirmation = self._needs_date_confirmation(date, time, parsed_date, parsed_time)
-                    if needs_confirmation:
-                        # Format the parsed date for confirmation
-                        from datetime import datetime
-                        date_obj = datetime.fromisoformat(parsed_date)
-                        day_name = date_obj.strftime("%A")  # e.g., "Wednesday"
-                        full_date = date_obj.strftime("%B %d")  # e.g., "November 19"
-                        formatted_date = f"{day_name}, {full_date}"  # e.g., "Wednesday, November 19"
-                        
-                        # Add confirmation request to session
-                        session_state["pending_confirmation"] = {
-                            "service": booking_state.services_requested,
-                            "date": parsed_date,
-                            "time": parsed_time,
-                            "formatted_date": formatted_date,
-                            "formatted_time": time,
-                            "day_name": day_name,
-                            "full_date": full_date
-                        }
-                        print(f"❓ Created pending confirmation for {formatted_date} at {time}")
-                    else:
-                        # No confirmation needed, mark as confirmed
-                        booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
-        
-        # Populate services array if we have both requested services and available services
-        self._populate_services_if_ready(booking_state, session_state)
-        
-        # Update session with modified BookingState
-        session_state["booking_state"] = booking_state.to_dict()
     
-    def _execute_actions(self, session_state: Dict, actions_neededs: List[str]) -> List[str]:
-        """Execute actions identified by the LLM"""
-        
-        actions_taken = []
-        
-        for action_str in actions_neededs:
-            # Convert string to enum (with fallback for invalid actions)
-            try:
-                action = BookingAction(action_str)
-            except ValueError:
-                actions_taken.append(f"{ActionResult.UNKNOWN_ACTION}: {action_str}")
-                continue
-            
-            if action == BookingAction.CHECK_AVAILABILITY:
-                # Real availability check
-                booking_state_dict = session_state["booking_state"]
-                booking_state = BookingState.from_dict(booking_state_dict)
-                service_name = booking_state.services_requested
-                date = booking_state.date_requested
-                time = booking_state.time_requested
-                
-                print(f"🔍 Checking availability for service: {service_name}, date: {date}, time: {time}")
-                
-                if service_name and date and time:
-                    # Check if confirmation is pending
-                    if booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING:
-                        actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Awaiting confirmation")
-                        print(f"⏳ Awaiting date/time confirmation")
-                        return actions_taken
-                    
-                    # Parse natural language date and time to proper formats
-                    parsed_date = parse_date(date)
-                    parsed_time = parse_time(time)
-                    
-                    if not parsed_date or not parsed_time:
-                        actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Invalid date/time format")
-                        print(f"❌ Could not parse date '{date}' or time '{time}'")
-                    else:
-                        print(f"📅 Parsed: {date} → {parsed_date}, {time} → {parsed_time}")
-                        
-                        # First get service details
-                        service = self.api_client.get_service_by_name(service_name)
-                        if service:
-                            # Get available technicians for this service
-                            technicians = self.api_client.get_technicians_for_service(service.get('_id'))
-                            # Convert to TechnicianInfo objects (simplified for now)
-                            booking_state.available_technicians = technicians
-                            
-                            if technicians:
-                                # Check availability for the first available technician
-                                first_tech = technicians[0]
-                                duration = service.get('duration_minutes', 60)
-                                availability = self.api_client.check_technician_availability(
-                                    first_tech.get('_id'), parsed_date, parsed_time, duration
-                                )
-                                
-                                if availability.get('available'):
-                                    # Update BookingState with parsed date/time and technician info
-                                    booking_state.appointmentDate = parsed_date
-                                    booking_state.startTime = parsed_time
-                                    booking_state.customerId = None  # Will be set when customer is created
-                                    
-                                    # Create ServiceTechnicianPair
-                                    service_pair = ServiceTechnicianPair(
-                                        serviceId=service.get('_id'),
-                                        technicianId=first_tech.get('_id'),
-                                        duration=duration,
-                                        price=service.get('price', 0)
-                                    )
-                                    booking_state.services = [service_pair]
-                                    booking_state.totalDuration = duration
-                                    booking_state.totalPrice = service.get('price', 0)
-                                    
-                                    # Update session with modified BookingState
-                                    session_state["booking_state"] = booking_state.to_dict()
-                                    
-                                    actions_taken.append(ActionResult.CHECKED_AVAILABILITY)
-                                    print(f"✅ Available with {first_tech.get('firstName')} {first_tech.get('lastName')}")
-                                else:
-                                    actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Not available")
-                                    print(f"❌ Not available at requested time")
-                            else:
-                                actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: No technicians found")
-                                print(f"❌ No technicians found for service")
-                        else:
-                            actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Service not found")
-                            print(f"❌ Service '{service_name}' not found")
-                else:
-                    # Missing required information
-                    missing = []
-                    if not service_name: missing.append("service")
-                    if not date: missing.append("date")
-                    if not time: missing.append("time")
-                    
-                    actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Missing {', '.join(missing)}")
-                    print(f"❌ Missing info: {', '.join(missing)}")
-                
-            elif action == BookingAction.CONFIRM_DATETIME:
-                # Handle date/time confirmation
-                pending = session_state.get("pending_confirmation")
-                if pending:
-                    # Update booking state with confirmed date/time
-                    booking_state_dict = session_state["booking_state"]
-                    booking_state = BookingState.from_dict(booking_state_dict)
-                    
-                    # Mark as confirmed and set parsed date/time
-                    booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
-                    booking_state.appointmentDate = pending["date"]
-                    booking_state.startTime = pending["time"]
-                    session_state["booking_state"] = booking_state.to_dict()
-                    
-                    # Clear pending confirmation
-                    session_state.pop("pending_confirmation", None)
-                    
-                    actions_taken.append("datetime_confirmed")
-                    print(f"✅ Date/time confirmed: {pending['formatted_date']} at {pending['formatted_time']}")
-                else:
-                    actions_taken.append("no_pending_confirmation")
-                    print(f"❌ No pending confirmation found")
-                
-            elif action == BookingAction.GET_TECHNICIANS:
-                # Real technician lookup
-                booking_state = session_state["booking_state"]
-                service_name = booking_state.get("services_requested")
-                
-                if service_name:
-                    # First get service by name
-                    service = self.api_client.get_service_by_name(service_name)
-                    if service:
-                        # Then get technicians for that service
-                        technicians = self.api_client.get_technicians_for_service(service.get('_id'))
-                        booking_state["available_technicians"] = technicians
-                        actions_taken.append(ActionResult.RETRIEVED_TECHNICIANS)
-                    else:
-                        actions_taken.append(f"{ActionResult.RETRIEVED_TECHNICIANS}: Service not found")
-                else:
-                    # Get all available technicians
-                    technicians = self.api_client.get_available_technicians()
-                    booking_state["available_technicians"] = technicians
-                    actions_taken.append(ActionResult.RETRIEVED_TECHNICIANS)
-                
-            elif action == BookingAction.CREATE_BOOKING:
-                # Real booking creation
-                booking_state_dict = session_state["booking_state"]
-                booking_state = BookingState.from_dict(booking_state_dict)
-                
-                if booking_state.is_ready_for_booking():
-                    # First ensure customer exists
-                    customer_phone = booking_state.customer_phone
-                    customer = None
-                    
-                    if customer_phone:
-                        customer = self.api_client.get_customer_by_phone(customer_phone)
-                    
-                    if not customer:
-                        # Create new customer
-                        name_parts = booking_state.customer_name.split()
-                        customer_data = {
-                            "firstName": name_parts[0] if name_parts else "Customer",
-                            "lastName": " ".join(name_parts[1:]) if len(name_parts) > 1 else "Customer",
-                            "phone": customer_phone or "",
-                            "email": f"{customer_phone}@temp.com" if customer_phone else "temp@temp.com"
-                        }
-                        customer = self.api_client.create_customer(customer_data)
-                    
-                    if customer:
-                        # Set customer ID in booking state
-                        booking_state.customerId = customer.get("_id")
-                        
-                        # Create booking using the backend-compatible format
-                        booking_data = booking_state.to_backend_booking()
-                        
-                        print(f"🔄 Creating booking with data: {booking_data}")
-                        booking = self.api_client.create_booking(booking_data)
-                        
-                        if booking:
-                            booking_state.status = BookingStatus.CONFIRMED
-                            session_state["conversation_complete"] = True
-                            session_state["booking_state"] = booking_state.to_dict()
-                            actions_taken.append(ActionResult.BOOKING_CREATED)
-                        else:
-                            actions_taken.append(f"{ActionResult.BOOKING_CREATED}: Failed to create")
-                    else:
-                        actions_taken.append(f"{ActionResult.BOOKING_CREATED}: Customer creation failed")
-                else:
-                    actions_taken.append(ActionResult.BOOKING_NOT_READY)
-                    
-            elif action == BookingAction.CALCULATE_COST:
-                # Real cost calculation
-                booking_state = session_state["booking_state"]
-                service_name = booking_state.get("services_requested")
-                
-                if service_name:
-                    service = self.api_client.get_service_by_name(service_name)
-                    if service:
-                        booking_state["total_cost"] = service.get("price", 0)
-                        actions_taken.append(ActionResult.COST_CALCULATED)
-                    else:
-                        actions_taken.append(f"{ActionResult.COST_CALCULATED}: Service not found")
-                else:
-                    actions_taken.append(f"{ActionResult.COST_CALCULATED}: No service specified")
-                
-            elif action == BookingAction.GET_SERVICES:
-                # Real service lookup
-                services = self.api_client.get_all_services()
-                booking_state = session_state["booking_state"]
-                booking_state["available_services"] = services
-                actions_taken.append(ActionResult.SERVICES_RETRIEVED)
-                
-            elif action == BookingAction.UPDATE_BOOKING:
-                # Simulate booking update
-                booking_state = session_state["booking_state"]
-                if booking_state.get("booking_status") == BookingStatus.CONFIRMED:
-                    booking_state["booking_status"] = BookingStatus.CONFIRMED  # Keep confirmed
-                    actions_taken.append(ActionResult.BOOKING_UPDATED)
-                else:
-                    actions_taken.append(ActionResult.BOOKING_UPDATE_FAILED)
-                
-            elif action == BookingAction.CANCEL_BOOKING:
-                # Simulate booking cancellation
-                booking_state = session_state["booking_state"]
-                booking_state["booking_status"] = BookingStatus.CANCELLED
-                booking_state["confirmation_id"] = ""
-                actions_taken.append(ActionResult.BOOKING_CANCELLED)
-        
-        return actions_taken
     
-    def _is_booking_ready(self, booking_state_dict: Dict) -> bool:
-        """Check if booking has all required information"""
-        booking_state = BookingState.from_dict(booking_state_dict)
-        return booking_state.is_ready_for_booking()
     
-    def _needs_date_confirmation(self, original_date: str, original_time: str, parsed_date: str, parsed_time: str) -> bool:
-        """Check if the parsed date/time needs confirmation from the user"""
-        # Relative dates that need confirmation
-        relative_dates = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-                         'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'tues', 'thurs',
-                         'tomorrow', 'today', 'next week', 'this week']
-        
-        # Check if the original input contains relative terms
-        original_lower = original_date.lower()
-        for relative_term in relative_dates:
-            if relative_term in original_lower:
-                return True
-        
-        # Also check for ambiguous times (no AM/PM specified for times that could be either)
-        time_lower = original_time.lower()
-        if any(hour in time_lower for hour in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']):
-            if 'am' not in time_lower and 'pm' not in time_lower:
-                # Ambiguous time without AM/PM
-                return True
-        
-        return False
     
-    def _populate_services_if_ready(self, booking_state: BookingState, session_state: Dict) -> None:
-        """Populate services array if we have both requested services and available services"""
-        
-        # Only populate if we have services_requested and services array needs population
-        if not booking_state.services_requested:
-            return
-        
-        # Parse requested services
-        requested_service_names = [name.strip() for name in booking_state.services_requested.split(',')]
-        
-        # Only populate if we have available_services data
-        if not booking_state.available_services:
-            return
-        
-        # Check if current services match exactly what's requested
-        if booking_state.services:
-            current_service_count = len(booking_state.services)
-            requested_service_count = len(requested_service_names)
-            
-            # If we have the exact number of requested services, check if they match
-            if current_service_count == requested_service_count:
-                # Get current service names to compare
-                available_services_by_id = {svc.get('_id') if isinstance(svc, dict) else svc._id: 
-                                          svc.get('name') if isinstance(svc, dict) else svc.name 
-                                          for svc in booking_state.available_services}
-                
-                current_service_names = []
-                for service in booking_state.services:
-                    service_name = available_services_by_id.get(service.serviceId, '')
-                    current_service_names.append(service_name)
-                
-                # If current services match requested services, no need to repopulate
-                if set(current_service_names) == set(requested_service_names):
-                    return
-        
-        # Clear existing services and rebuild from requested services
-        service_pairs = []
-        existing_service_ids = set()
-        
-        # Start fresh with totals
-        total_duration = 0
-        total_price = 0.0
-        
-        for service_name in requested_service_names:
-            # Find the service in available_services
-            matching_service = None
-            for available_service in booking_state.available_services:
-                # Handle both dict and ServiceInfo object formats
-                if hasattr(available_service, 'name'):
-                    # ServiceInfo object
-                    service_name_check = available_service.name.lower()
-                    service_id = available_service._id
-                    service_duration = available_service.duration_minutes
-                    service_price = available_service.price
-                else:
-                    # Dictionary format
-                    service_name_check = available_service.get('name', '').lower()
-                    service_id = available_service.get('_id')
-                    service_duration = available_service.get('duration_minutes', 0)
-                    service_price = available_service.get('price', 0.0)
-                
-                if service_name_check == service_name.lower():
-                    matching_service = {
-                        '_id': service_id,
-                        'name': service_name,
-                        'duration_minutes': service_duration,
-                        'price': service_price
-                    }
-                    break
-            
-            if matching_service:
-                # Create ServiceTechnicianPair (without technician for now)
-                service_pair = ServiceTechnicianPair(
-                    serviceId=matching_service['_id'],
-                    technicianId=None,  # Will be set during availability check
-                    duration=matching_service['duration_minutes'],
-                    price=matching_service['price']
-                )
-                service_pairs.append(service_pair)
-                total_duration += matching_service['duration_minutes']
-                total_price += matching_service['price']
-                print(f"📋 Added service: {service_name} (${matching_service['price']}, {matching_service['duration_minutes']} min)")
-        
-        # Update booking state if we found any matching services
-        if service_pairs:
-            booking_state.services = service_pairs
-            booking_state.totalDuration = total_duration
-            booking_state.totalPrice = total_price
-            print(f"💰 Total: ${total_price}, {total_duration} minutes")
     
     def _is_confirmation_response(self, user_message: str, session_state: Dict) -> bool:
         """Check if user message is confirming a pending confirmation"""
