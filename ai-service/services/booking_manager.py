@@ -61,15 +61,20 @@ class BookingManager:
                     
                     if needs_confirmation:
                         # Create pending confirmation
-                        formatted_date = parsed_date.strftime("%A, %B %d")
-                        formatted_time = parsed_time.strftime("%-I%p").lower()
+                        # Convert parsed_date string to datetime object for formatting
+                        from datetime import datetime
+                        date_obj = datetime.fromisoformat(parsed_date)
+                        time_obj = datetime.strptime(parsed_time, "%H:%M").time()
+                        
+                        formatted_date = date_obj.strftime("%A, %B %d")
+                        formatted_time = time_obj.strftime("%-I%p").lower()
                         
                         session_state["pending_confirmation"] = {
                             "type": "datetime",
                             "original_date": date,
                             "original_time": time,
-                            "parsed_date": parsed_date.isoformat(),
-                            "parsed_time": parsed_time.strftime("%H:%M"),
+                            "parsed_date": parsed_date,
+                            "parsed_time": parsed_time,
                             "formatted_date": formatted_date,
                             "formatted_time": formatted_time,
                             "services": booking_state.services_requested or "your appointment"

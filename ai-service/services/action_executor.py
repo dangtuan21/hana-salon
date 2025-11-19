@@ -158,8 +158,8 @@ class ActionExecutor:
             
             # Mark as confirmed and set parsed date/time
             booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
-            booking_state.appointmentDate = pending["date"]
-            booking_state.startTime = pending["time"]
+            booking_state.appointmentDate = pending["parsed_date"]
+            booking_state.startTime = pending["parsed_time"]
             session_state["booking_state"] = booking_state.to_dict()
             
             # Clear pending confirmation
