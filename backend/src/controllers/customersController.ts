@@ -68,7 +68,7 @@ export const getCustomerById = asyncHandler(async (req: Request, res: Response):
       return;
     }
     
-    logger.info(`Retrieved customer: ${customer.email}`);
+    logger.info(`Retrieved customer: ${customer.firstName} ${customer.lastName || ''} (${customer.phone})`);
     
     ResponseUtil.success(res, customer, 'Customer retrieved successfully');
     
@@ -97,16 +97,16 @@ export const createCustomer = asyncHandler(async (req: Request, res: Response): 
       preferences
     } = req.body;
 
-    // Basic validation
-    if (!firstName || !lastName || !email || !phone) {
-      ResponseUtil.badRequest(res, 'Missing required fields: firstName, lastName, email, phone');
+    // Basic validation - only firstName and phone are required
+    if (!firstName || !phone) {
+      ResponseUtil.badRequest(res, 'Missing required fields: firstName, phone');
       return;
     }
 
     const customerData = {
       firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      email: email.trim().toLowerCase(),
+      lastName: lastName ? lastName.trim() : undefined,  // Optional
+      email: email ? email.trim().toLowerCase() : undefined,  // Optional
       phone: phone.trim(),
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
       gender: gender?.toLowerCase(),
@@ -116,7 +116,7 @@ export const createCustomer = asyncHandler(async (req: Request, res: Response): 
 
     const newCustomer = await Customer.create(customerData);
     
-    logger.info(`Created new customer: ${newCustomer.email}`);
+    logger.info(`Created new customer: ${newCustomer.firstName} ${newCustomer.lastName || ''} (${newCustomer.phone})`);
     
     ResponseUtil.success(res, newCustomer, 'Customer created successfully', 201);
     

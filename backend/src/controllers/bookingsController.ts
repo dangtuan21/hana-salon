@@ -83,8 +83,8 @@ export const getBookingById = asyncHandler(async (req: Request, res: Response): 
     
     const booking = await Booking.findById(id)
       .populate('customerId', 'firstName lastName email phone address preferences')
-      .populate('technicianId', 'firstName lastName employeeId specialties skillLevel rating')
-      .populate('serviceIds', 'name category duration_minutes price description')
+      .populate('services.technicianId', 'firstName lastName employeeId specialties skillLevel rating')
+      .populate('services.serviceId', 'name category duration_minutes price description')
       .select('-__v');
     
     if (!booking) {

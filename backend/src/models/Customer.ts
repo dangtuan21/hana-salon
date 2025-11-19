@@ -4,8 +4,8 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICustomer extends Document {
   _id: mongoose.Types.ObjectId;
   firstName: string;
-  lastName: string;
-  email: string;
+  lastName?: string;  // Make optional
+  email?: string;     // Make optional
   phone: string;
   dateOfBirth?: Date;
   gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
@@ -39,14 +39,15 @@ const CustomerSchema = new Schema<ICustomer>({
   },
   lastName: {
     type: String,
-    required: [true, 'Last name is required'],
+    required: false,  // Make lastName optional
     trim: true,
     maxlength: [50, 'Last name cannot exceed 50 characters']
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: false,  // Make email optional
     unique: true,
+    sparse: true,     // Allow multiple empty values for unique field
     trim: true,
     lowercase: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
@@ -146,7 +147,7 @@ const CustomerSchema = new Schema<ICustomer>({
 });
 
 // Indexes for better query performance
-CustomerSchema.index({ email: 1 }, { unique: true });
+CustomerSchema.index({ email: 1 }, { unique: true, sparse: true });  // Sparse index for optional email
 CustomerSchema.index({ phone: 1 });
 CustomerSchema.index({ firstName: 1, lastName: 1 });
 CustomerSchema.index({ isActive: 1 });
@@ -154,7 +155,7 @@ CustomerSchema.index({ created_at: -1 });
 
 // Virtual for full name
 CustomerSchema.virtual('fullName').get(function() {
-  return `${this.firstName} ${this.lastName}`;
+  return this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
 });
 
 // Pre-save middleware to update the updated_at field

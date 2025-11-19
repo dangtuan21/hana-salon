@@ -66,87 +66,121 @@ class ActionExecutor:
         return actions_taken
     
     def _check_availability(self, session_state: Dict) -> str:
-        """Check availability for requested service, date, and time"""
+        """Check availability for all services in the booking"""
         booking_state_dict = session_state["booking_state"]
         booking_state = BookingState.from_dict(booking_state_dict)
-        service_name = booking_state.services_requested
         date = booking_state.date_requested
         time = booking_state.time_requested
         
-        print(f"🔍 Checking availability for service: {service_name}, date: {date}, time: {time}")
+        print(f"🔍 Checking availability for {len(booking_state.services)} service(s), date: {date}, time: {time}")
         
-        if service_name and date and time:
-            # Check if confirmation is pending
-            if booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING:
-                print(f"⏳ Awaiting date/time confirmation")
-                return f"{ActionResult.CHECKED_AVAILABILITY}: Awaiting confirmation"
+        # Check if we have required information
+        if not booking_state.services:
+            print(f"❌ No services in booking state")
+            return f"{ActionResult.CHECKED_AVAILABILITY}: No services found"
             
-            # Parse natural language date and time to proper formats
-            parsed_date = parse_date(date)
-            parsed_time = parse_time(time)
-            
-            if not parsed_date or not parsed_time:
-                print(f"❌ Could not parse date '{date}' or time '{time}'")
-                return f"{ActionResult.CHECKED_AVAILABILITY}: Invalid date/time format"
-            
-            print(f"📅 Parsed: {date} → {parsed_date}, {time} → {parsed_time}")
-            
-            # First get service details
-            service = self.api_client.get_service_by_name(service_name)
-            if service:
-                # Get available technicians for this service
-                technicians = self.api_client.get_technicians_for_service(service.get('_id'))
-                # Convert to TechnicianInfo objects (simplified for now)
-                booking_state.available_technicians = technicians
-                
-                if technicians:
-                    # Check availability for the first available technician
-                    first_tech = technicians[0]
-                    duration = service.get('duration_minutes', 60)
-                    availability = self.api_client.check_technician_availability(
-                        first_tech.get('_id'), parsed_date, parsed_time, duration
-                    )
-                    
-                    if availability.get('available'):
-                        # Update BookingState with parsed date/time and technician info
-                        booking_state.appointmentDate = parsed_date
-                        booking_state.startTime = parsed_time
-                        booking_state.customerId = None  # Will be set when customer is created
-                        
-                        # Create ServiceTechnicianPair
-                        service_pair = ServiceTechnicianPair(
-                            serviceId=service.get('_id'),
-                            technicianId=first_tech.get('_id'),
-                            duration=duration,
-                            price=service.get('price', 0)
-                        )
-                        booking_state.services = [service_pair]
-                        booking_state.totalDuration = duration
-                        booking_state.totalPrice = service.get('price', 0)
-                        
-                        # Update session with modified BookingState
-                        session_state["booking_state"] = booking_state.to_dict()
-                        
-                        print(f"✅ Available with {first_tech.get('firstName')} {first_tech.get('lastName')}")
-                        return ActionResult.CHECKED_AVAILABILITY
-                    else:
-                        print(f"❌ Not available at requested time")
-                        return f"{ActionResult.CHECKED_AVAILABILITY}: Not available"
-                else:
-                    print(f"❌ No technicians found for service")
-                    return f"{ActionResult.CHECKED_AVAILABILITY}: No technicians found"
-            else:
-                print(f"❌ Service '{service_name}' not found")
-                return f"{ActionResult.CHECKED_AVAILABILITY}: Service not found"
-        else:
-            # Missing required information
+        if not date or not time:
             missing = []
-            if not service_name: missing.append("service")
             if not date: missing.append("date")
             if not time: missing.append("time")
-            
             print(f"❌ Missing info: {', '.join(missing)}")
             return f"{ActionResult.CHECKED_AVAILABILITY}: Missing {', '.join(missing)}"
+        
+        # Only proceed if date/time is confirmed
+        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
+            print(f"⏳ Date/time not confirmed yet (status: {booking_state.dateTimeConfirmationStatus})")
+            return f"{ActionResult.CHECKED_AVAILABILITY}: Date/time not confirmed"
+        
+        # Parse natural language date and time to proper formats
+        parsed_date = parse_date(date)
+        parsed_time = parse_time(time)
+        
+        if not parsed_date or not parsed_time:
+            print(f"❌ Could not parse date '{date}' or time '{time}'")
+            return f"{ActionResult.CHECKED_AVAILABILITY}: Invalid date/time format"
+        
+        print(f"📅 Parsed: {date} → {parsed_date}, {time} → {parsed_time}")
+        
+        # Check availability for each service
+        current_start_time = parsed_time
+        all_available = True
+        unavailable_services = []
+        
+        for i, service_pair in enumerate(booking_state.services):
+            print(f"🔍 Checking service {i+1}/{len(booking_state.services)}: {service_pair.serviceId}")
+            
+            # Get specialized technicians for this service
+            technicians = self.api_client.get_technicians_for_service(service_pair.serviceId)
+            
+            if not technicians:
+                print(f"❌ No technicians found for service {service_pair.serviceId}")
+                unavailable_services.append(f"Service {i+1}: No technicians")
+                all_available = False
+                continue
+            
+            # Find best available technician
+            best_technician = self._find_best_technician(technicians, service_pair.serviceId, parsed_date, current_start_time, service_pair.duration)
+            
+            if best_technician:
+                # Update service pair with technician assignment
+                service_pair.technicianId = best_technician['_id']
+                print(f"✅ Service {i+1} available with {best_technician.get('firstName')} {best_technician.get('lastName')}")
+                
+                # Calculate next start time for sequential services
+                from datetime import datetime, timedelta
+                current_time = datetime.strptime(current_start_time, "%H:%M")
+                next_time = current_time + timedelta(minutes=service_pair.duration)
+                current_start_time = next_time.strftime("%H:%M")
+            else:
+                print(f"❌ Service {i+1} not available at requested time")
+                unavailable_services.append(f"Service {i+1}: No availability")
+                all_available = False
+        
+        if all_available:
+            # Update booking state with confirmed availability
+            booking_state.appointmentDate = parsed_date
+            booking_state.startTime = parsed_time
+            
+            # Calculate end time based on total duration
+            from datetime import datetime, timedelta
+            start_time_obj = datetime.strptime(parsed_time, "%H:%M")
+            end_time_obj = start_time_obj + timedelta(minutes=booking_state.totalDuration)
+            booking_state.endTime = end_time_obj.strftime("%H:%M")
+            
+            # Update session with modified BookingState
+            session_state["booking_state"] = booking_state.to_dict()
+            
+            print(f"🎉 All services available! Appointment: {parsed_date} {parsed_time}-{booking_state.endTime}")
+            return ActionResult.CHECKED_AVAILABILITY
+        else:
+            print(f"❌ Some services unavailable: {', '.join(unavailable_services)}")
+            # TODO: Suggest alternative times
+            return f"{ActionResult.CHECKED_AVAILABILITY}: Some services unavailable"
+    
+    def _find_best_technician(self, technicians: List[Dict], service_id: str, date: str, start_time: str, duration: int) -> Dict:
+        """Find the best available technician for a service at the specified time"""
+        
+        # Sort technicians by preference: Senior > Junior, higher rating first
+        sorted_technicians = sorted(technicians, key=lambda t: (
+            t.get('skillLevel') == 'Senior',  # Senior technicians first
+            t.get('rating', 0)  # Higher rating first
+        ), reverse=True)
+        
+        for technician in sorted_technicians:
+            tech_id = technician.get('_id')
+            print(f"🔍 Checking {technician.get('firstName')} {technician.get('lastName')} ({technician.get('skillLevel')}, Rating: {technician.get('rating')})")
+            
+            # Check if this technician is available at the requested time
+            availability = self.api_client.check_technician_availability(tech_id, date, start_time, duration)
+            
+            if availability.get('available'):
+                print(f"✅ {technician.get('firstName')} {technician.get('lastName')} is available")
+                return technician
+            else:
+                print(f"❌ {technician.get('firstName')} {technician.get('lastName')} is not available")
+        
+        # No technician available
+        return None
     
     def _confirm_datetime(self, session_state: Dict) -> str:
         """Handle date/time confirmation"""
@@ -193,50 +227,189 @@ class ActionExecutor:
             return ActionResult.RETRIEVED_TECHNICIANS
     
     def _create_booking(self, session_state: Dict) -> str:
-        """Create a new booking"""
+        """Create a new booking with enhanced multi-service support"""
         booking_state_dict = session_state["booking_state"]
         booking_state = BookingState.from_dict(booking_state_dict)
         
-        if booking_state.is_ready_for_booking():
-            # First ensure customer exists
-            customer_phone = booking_state.customer_phone
-            customer = None
-            
-            if customer_phone:
-                customer = self.api_client.get_customer_by_phone(customer_phone)
-            
+        print(f"🔄 Creating booking for {len(booking_state.services)} service(s)")
+        
+        # Validate booking readiness
+        if not self._is_booking_ready_for_creation(booking_state):
+            missing_items = self._get_missing_booking_items(booking_state)
+            print(f"❌ Booking not ready: Missing {', '.join(missing_items)}")
+            return f"{ActionResult.BOOKING_NOT_READY}: Missing {', '.join(missing_items)}"
+        
+        try:
+            # Step 1: Ensure customer exists or create new one
+            customer = self._ensure_customer_exists(booking_state)
             if not customer:
-                # Create new customer
-                name_parts = booking_state.customer_name.split()
-                customer_data = {
-                    "firstName": name_parts[0] if name_parts else "Customer",
-                    "lastName": " ".join(name_parts[1:]) if len(name_parts) > 1 else "Customer",
-                    "phone": customer_phone or "",
-                    "email": f"{customer_phone}@temp.com" if customer_phone else "temp@temp.com"
-                }
-                customer = self.api_client.create_customer(customer_data)
+                print(f"❌ Failed to create/find customer")
+                return f"{ActionResult.BOOKING_CREATED}: Customer creation failed"
+            
+            # Step 2: Set customer ID in booking state
+            booking_state.customerId = customer.get("_id")
+            print(f"✅ Customer ready: {customer.get('firstName')} {customer.get('lastName')} (ID: {customer.get('_id')})")
+            
+            # Step 3: Validate all services have technicians assigned
+            unassigned_services = [i+1 for i, service in enumerate(booking_state.services) if not service.technicianId]
+            if unassigned_services:
+                print(f"❌ Services without technicians: {unassigned_services}")
+                return f"{ActionResult.BOOKING_CREATED}: Services {unassigned_services} need technician assignment"
+            
+            # Step 4: Create booking using backend-compatible format
+            booking_data = booking_state.to_backend_booking()
+            print(f"🔄 Creating booking with data: {booking_data}")
+            
+            booking = self.api_client.create_booking(booking_data)
+            
+            if booking:
+                # Step 5: Update booking state with success
+                booking_state.status = BookingStatus.CONFIRMED  # Use proper enum
+                booking_state.customerId = customer.get("_id")
+                session_state["conversation_complete"] = True
+                session_state["booking_state"] = booking_state.to_dict()
+                
+                print(f"🎉 Booking created successfully! ID: {booking.get('_id', 'Unknown')}")
+                print(f"📅 Appointment: {booking_state.appointmentDate} {booking_state.startTime}-{booking_state.endTime}")
+                print(f"💰 Total: ${booking_state.totalPrice} for {booking_state.totalDuration} minutes")
+                
+                return ActionResult.BOOKING_CREATED
+            else:
+                print(f"❌ Backend booking creation failed")
+                return f"{ActionResult.BOOKING_CREATED}: Backend creation failed"
+                
+        except Exception as e:
+            print(f"💥 Error creating booking: {e}")
+            return f"{ActionResult.BOOKING_CREATED}: Error - {str(e)}"
+    
+    def _is_booking_ready_for_creation(self, booking_state: BookingState) -> bool:
+        """Check if booking has all required information for creation"""
+        required_fields = [
+            booking_state.customer_name,
+            booking_state.customer_phone,
+            booking_state.appointmentDate,
+            booking_state.startTime,
+            booking_state.services
+        ]
+        
+        # Check basic required fields
+        if not all(required_fields):
+            return False
+        
+        # Check that all services have technicians assigned
+        for service in booking_state.services:
+            if not service.technicianId:
+                return False
+        
+        # Check confirmation status
+        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
+            return False
+            
+        return True
+    
+    def _get_missing_booking_items(self, booking_state: BookingState) -> List[str]:
+        """Get list of missing items preventing booking creation"""
+        missing = []
+        
+        if not booking_state.customer_name:
+            missing.append("customer name")
+        if not booking_state.customer_phone:
+            missing.append("customer phone")
+        if not booking_state.appointmentDate:
+            missing.append("appointment date")
+        if not booking_state.startTime:
+            missing.append("start time")
+        if not booking_state.services:
+            missing.append("services")
+        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
+            missing.append("date/time confirmation")
+            
+        # Check for unassigned technicians
+        unassigned_count = sum(1 for service in booking_state.services if not service.technicianId)
+        if unassigned_count > 0:
+            missing.append(f"technician assignment for {unassigned_count} service(s)")
+            
+        return missing
+    
+    def _ensure_customer_exists(self, booking_state: BookingState) -> Dict:
+        """Ensure customer exists in backend, create if necessary"""
+        customer_phone = booking_state.customer_phone
+        customer = None
+        
+        # Try to find existing customer by phone
+        if customer_phone:
+            try:
+                customer = self.api_client.get_customer_by_phone(customer_phone)
+                if customer:
+                    print(f"✅ Found existing customer: {customer.get('firstName')} {customer.get('lastName')}")
+                    return customer
+            except Exception as e:
+                print(f"⚠️ Error finding customer: {e}")
+        
+        # Create new customer if not found
+        try:
+            name_parts = booking_state.customer_name.split() if booking_state.customer_name else ["Customer"]
+            
+            # Format phone number properly (ensure it's in a valid format)
+            formatted_phone = self._format_phone_number(customer_phone) if customer_phone else ""
+            
+            customer_data = {
+                "firstName": name_parts[0],
+                "lastName": " ".join(name_parts[1:]) if len(name_parts) > 1 else "",
+                "phone": formatted_phone,
+                "email": ""  # Allow empty email
+            }
+            
+            print(f"🔄 Creating new customer: {customer_data}")
+            customer = self.api_client.create_customer(customer_data)
             
             if customer:
-                # Set customer ID in booking state
-                booking_state.customerId = customer.get("_id")
-                
-                # Create booking using the backend-compatible format
-                booking_data = booking_state.to_backend_booking()
-                
-                print(f"🔄 Creating booking with data: {booking_data}")
-                booking = self.api_client.create_booking(booking_data)
-                
-                if booking:
-                    booking_state.status = BookingStatus.CONFIRMED
-                    session_state["conversation_complete"] = True
-                    session_state["booking_state"] = booking_state.to_dict()
-                    return ActionResult.BOOKING_CREATED
-                else:
-                    return f"{ActionResult.BOOKING_CREATED}: Failed to create"
-            else:
-                return f"{ActionResult.BOOKING_CREATED}: Customer creation failed"
+                print(f"✅ Created new customer: {customer.get('firstName')} {customer.get('lastName')}")
+            
+            return customer
+            
+        except Exception as e:
+            print(f"💥 Error creating customer: {e}")
+            return None
+    
+    def _format_phone_number(self, phone: str) -> str:
+        """Format phone number to a valid format"""
+        if not phone:
+            return ""
+        
+        # Remove all non-digit characters
+        digits = ''.join(filter(str.isdigit, phone))
+        
+        # Handle different phone number lengths - try multiple formats
+        if len(digits) == 10:
+            # Try different common formats
+            formats_to_try = [
+                f"+1{digits}",  # International format
+                f"{digits}",    # Just digits
+                f"({digits[:3]}) {digits[3:6]}-{digits[6:]}",  # (XXX) XXX-XXXX
+                f"{digits[:3]}.{digits[3:6]}.{digits[6:]}",    # XXX.XXX.XXXX
+                f"{digits[:3]} {digits[3:6]} {digits[6:]}"     # XXX XXX XXXX
+            ]
+            # Return the first format for now, we'll try others if this fails
+            return formats_to_try[0]  # Try international format first
+        elif len(digits) == 11 and digits[0] == '1':
+            # Already has country code
+            return f"+{digits}"
+        elif len(digits) == 7:
+            # Add default area code
+            return f"+1555{digits}"
+        elif len(digits) < 7:
+            # Too short, pad with zeros and add area code
+            padded = digits.ljust(7, '0')
+            return f"+1555{padded}"
         else:
-            return ActionResult.BOOKING_NOT_READY
+            # Too long or unusual format, try to extract 10 digits
+            if len(digits) >= 10:
+                # Take the last 10 digits
+                digits = digits[-10:]
+                return f"+1{digits}"
+            else:
+                return phone
     
     def _calculate_cost(self, session_state: Dict) -> str:
         """Calculate cost for requested services"""

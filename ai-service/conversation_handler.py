@@ -129,19 +129,33 @@ class ConversationHandler:
             is_confirmation_response = self._is_confirmation_response(user_message, session_state)
             if is_confirmation_response:
                 print(f"✅ Detected confirmation response: '{user_message}'")
-                # Automatically trigger confirm_datetime action
-                actions_taken = self.action_executor.execute_actions(session_state, ["confirm_datetime"])
+                # Automatically trigger confirm_datetime and check_availability actions
+                actions_taken = self.action_executor.execute_actions(session_state, ["confirm_datetime", "check_availability"])
                 
-                # Generate simple confirmation response
+                # Generate response based on availability check results
+                availability_result = None
+                for action in actions_taken:
+                    if "availability_checked" in str(action) or "CHECKED_AVAILABILITY" in str(action):
+                        availability_result = action
+                        break
+                
+                if availability_result and "CHECKED_AVAILABILITY" in str(availability_result):
+                    response_text = "Perfect! Your appointment is available and confirmed. Let me create your booking."
+                    # Trigger booking creation
+                    booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
+                    actions_taken.extend(booking_actions)
+                else:
+                    response_text = "I'm checking availability for your appointment. Please wait a moment..."
+                
                 session_state["messages"].append({
                     "role": "assistant", 
-                    "content": "Great! Let me check the availability for your appointment.",
+                    "content": response_text,
                     "timestamp": datetime.now().isoformat()
                 })
                 
                 return {
                     "session_id": session_state["session_id"],
-                    "response": "Great! Let me check the availability for your appointment.",
+                    "response": response_text,
                     "booking_state": session_state["booking_state"],
                     "conversation_complete": session_state["conversation_complete"],
                     "actions_taken": actions_taken,
@@ -359,11 +373,6 @@ class ConversationHandler:
             context += f"{role}: {msg['content']}\n"
         
         return context
-    
-    
-    
-    
-    
     
     def _is_confirmation_response(self, user_message: str, session_state: Dict) -> bool:
         """Check if user message is confirming a pending confirmation"""
