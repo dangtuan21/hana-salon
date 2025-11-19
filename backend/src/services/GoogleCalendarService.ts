@@ -61,24 +61,34 @@ export class GoogleCalendarService {
   /**
    * Convert booking data to Google Calendar event format
    */
-  private bookingToCalendarEvent(booking: IBooking, customerEmail?: string, technicianEmails?: string[]): CalendarEventData {
-    // Create appointment datetime
+  private bookingToCalendarEvent(booking: IBooking, customerEmail?: string, technicianEmails?: string[], populatedData?: any): CalendarEventData {
+    // Create appointment datetime in the correct timezone
     const appointmentDate = new Date(booking.appointmentDate);
     const [startHours, startMinutes] = booking.startTime.split(':');
     const [endHours, endMinutes] = booking.endTime.split(':');
 
-    const startDateTime = new Date(appointmentDate);
-    startDateTime.setHours(parseInt(startHours || '0'), parseInt(startMinutes || '0'), 0, 0);
+    // Create date strings in the format YYYY-MM-DD to avoid timezone issues
+    const dateStr = appointmentDate.toISOString().split('T')[0]; // Gets YYYY-MM-DD
+    
+    // Create datetime strings in the calendar's timezone
+    const startTimeStr = `${startHours?.padStart(2, '0') || '00'}:${startMinutes?.padStart(2, '0') || '00'}:00`;
+    const endTimeStr = `${endHours?.padStart(2, '0') || '00'}:${endMinutes?.padStart(2, '0') || '00'}:00`;
+    
+    const startDateTime = `${dateStr}T${startTimeStr}`;
+    const endDateTime = `${dateStr}T${endTimeStr}`;
 
-    const endDateTime = new Date(appointmentDate);
-    endDateTime.setHours(parseInt(endHours || '0'), parseInt(endMinutes || '0'), 0, 0);
-
-    // Create service summary
-    const serviceNames = booking.services.map(service => `Service ${service.serviceId}`).join(', ');
-    const summary = `Salon Appointment - ${serviceNames}`;
+    // Create service summary with actual service names
+    let serviceNames = 'Services';
+    if (populatedData?.services) {
+      serviceNames = populatedData.services.map((service: any) => service.name || 'Service').join(' & ');
+    } else {
+      // Fallback to service count if no populated data
+      serviceNames = booking.services.length === 1 ? 'Service' : `${booking.services.length} Services`;
+    }
+    const summary = `Hana Salon Appointment - ${serviceNames}`;
 
     // Create detailed description
-    const description = this.createEventDescription(booking);
+    const description = this.createEventDescription(booking, populatedData);
 
     // Create attendees list
     const attendees: Array<{ email: string; displayName?: string }> = [];
@@ -98,11 +108,11 @@ export class GoogleCalendarService {
       summary,
       description,
       start: {
-        dateTime: startDateTime.toISOString(),
+        dateTime: startDateTime,
         timeZone: this.config.timeZone,
       },
       end: {
-        dateTime: endDateTime.toISOString(),
+        dateTime: endDateTime,
         timeZone: this.config.timeZone,
       },
       status: calendarStatus,
@@ -120,44 +130,108 @@ export class GoogleCalendarService {
   }
 
   /**
-   * Create detailed event description from booking data
+   * Create user-friendly event description from booking data
    */
-  private createEventDescription(booking: IBooking): string {
+  private createEventDescription(booking: IBooking, populatedData?: any): string {
     const lines: string[] = [];
     
-    lines.push(`Booking ID: ${booking._id}`);
-    lines.push(`Status: ${booking.status}`);
-    lines.push(`Total Duration: ${booking.totalDuration} minutes`);
-    lines.push(`Total Price: $${booking.totalPrice.toFixed(2)}`);
+    // Booking ID for reference
+    lines.push(`🆔 Booking ID: ${booking._id}`);
+    
+    // Customer information
+    if (populatedData?.customer) {
+      const customer = populatedData.customer;
+      lines.push(`👤 Customer: ${customer.firstName || ''} ${customer.lastName || ''}`.trim());
+      if (customer.phone) {
+        lines.push(`📞 Phone: ${customer.phone}`);
+      }
+      if (customer.email) {
+        lines.push(`📧 Email: ${customer.email}`);
+      }
+    }
     lines.push('');
     
-    lines.push('Services:');
+    // Services section
+    lines.push('💅 Services:');
     booking.services.forEach((service, index) => {
-      lines.push(`${index + 1}. Service ID: ${service.serviceId}`);
-      lines.push(`   Technician ID: ${service.technicianId}`);
-      lines.push(`   Duration: ${service.duration} minutes`);
-      lines.push(`   Price: $${service.price.toFixed(2)}`);
+      const serviceName = populatedData?.services?.[index]?.name || 'Service';
+      const technicianName = populatedData?.technicians?.[index] 
+        ? `${populatedData.technicians[index].firstName || ''} ${populatedData.technicians[index].lastName || ''}`.trim()
+        : 'Technician';
+      
+      const duration = this.formatDuration(service.duration);
+      lines.push(`• ${serviceName} with ${technicianName} - ${duration} ($${service.price.toFixed(2)})`);
+      
       if (service.notes) {
-        lines.push(`   Notes: ${service.notes}`);
+        lines.push(`  📝 ${service.notes}`);
       }
-      lines.push('');
     });
-
-    if (booking.notes) {
-      lines.push(`General Notes: ${booking.notes}`);
-    }
-
-    if (booking.customerNotes) {
-      lines.push(`Customer Notes: ${booking.customerNotes}`);
-    }
-
     lines.push('');
-    lines.push(`Payment Status: ${booking.paymentStatus}`);
-    if (booking.paymentMethod) {
-      lines.push(`Payment Method: ${booking.paymentMethod}`);
+    
+    // Summary information
+    lines.push(`⏰ Total Duration: ${this.formatDuration(booking.totalDuration)}`);
+    lines.push(`💰 Total Price: $${booking.totalPrice.toFixed(2)}`);
+    lines.push(`💳 Payment: ${this.formatPaymentStatus(booking.paymentStatus)}`);
+    lines.push(`📅 Status: ${this.formatBookingStatus(booking.status)}`);
+    
+    // Notes section
+    if (booking.notes || booking.customerNotes) {
+      lines.push('');
+      if (booking.notes) {
+        lines.push(`📝 Notes: ${booking.notes}`);
+      }
+      if (booking.customerNotes) {
+        lines.push(`💬 Customer Notes: ${booking.customerNotes}`);
+      }
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * Format duration in a user-friendly way
+   */
+  private formatDuration(minutes: number): string {
+    if (minutes < 60) {
+      return `${minutes}min`;
+    }
+    
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    
+    if (remainingMinutes === 0) {
+      return `${hours}h`;
+    }
+    
+    return `${hours}h ${remainingMinutes}min`;
+  }
+
+  /**
+   * Format payment status in a user-friendly way
+   */
+  private formatPaymentStatus(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'pending': return 'Pending';
+      case 'paid': return 'Paid ✅';
+      case 'refunded': return 'Refunded';
+      case 'failed': return 'Failed ❌';
+      default: return status;
+    }
+  }
+
+  /**
+   * Format booking status in a user-friendly way
+   */
+  private formatBookingStatus(status: string): string {
+    switch (status.toLowerCase()) {
+      case 'scheduled': return 'Scheduled 📅';
+      case 'confirmed': return 'Confirmed ✅';
+      case 'in_progress': return 'In Progress 🔄';
+      case 'completed': return 'Completed ✅';
+      case 'cancelled': return 'Cancelled ❌';
+      case 'no_show': return 'No Show ⚠️';
+      default: return status;
+    }
   }
 
   /**
@@ -185,10 +259,11 @@ export class GoogleCalendarService {
   async createBookingEvent(
     booking: IBooking,
     customerEmail?: string,
-    technicianEmails?: string[]
+    technicianEmails?: string[],
+    populatedData?: any
   ): Promise<string | null> {
     try {
-      const eventData = this.bookingToCalendarEvent(booking, customerEmail, technicianEmails);
+      const eventData = this.bookingToCalendarEvent(booking, customerEmail, technicianEmails, populatedData);
       
       const response = await this.calendar.events.insert({
         calendarId: this.config.calendarId,
@@ -213,10 +288,11 @@ export class GoogleCalendarService {
     eventId: string,
     booking: IBooking,
     customerEmail?: string,
-    technicianEmails?: string[]
+    technicianEmails?: string[],
+    populatedData?: any
   ): Promise<boolean> {
     try {
-      const eventData = this.bookingToCalendarEvent(booking, customerEmail, technicianEmails);
+      const eventData = this.bookingToCalendarEvent(booking, customerEmail, technicianEmails, populatedData);
       
       await this.calendar.events.update({
         calendarId: this.config.calendarId,

@@ -17,6 +17,7 @@
     "test:calendar": "ts-node -r tsconfig-paths/register src/test/test-calendar-integration.ts",
     "test:booking-sync": "ts-node -r tsconfig-paths/register src/test/test-booking-calendar-sync.ts",
     "test:simple-sync": "ts-node -r tsconfig-paths/register src/test/test-simple-booking-sync.ts",
+    "test:user-friendly": "ts-node -r tsconfig-paths/register src/test/test-user-friendly-calendar.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },

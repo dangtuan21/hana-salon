@@ -5,6 +5,11 @@ import logger from '@/utils/logger';
 export interface BookingCalendarData {
   customerEmail?: string;
   technicianEmails?: string[];
+  populatedData?: {
+    customer?: any;
+    services?: any[] | undefined;
+    technicians?: any[] | undefined;
+  };
 }
 
 /**
@@ -30,7 +35,8 @@ export class BookingCalendarIntegration {
       const eventId = await calendarService.createBookingEvent(
         booking,
         calendarData?.customerEmail,
-        calendarData?.technicianEmails
+        calendarData?.technicianEmails,
+        calendarData?.populatedData
       );
 
       if (eventId) {
@@ -70,7 +76,8 @@ export class BookingCalendarIntegration {
         booking.calendarEventId!,
         booking,
         calendarData?.customerEmail,
-        calendarData?.technicianEmails
+        calendarData?.technicianEmails,
+        calendarData?.populatedData
       );
 
       if (success) {

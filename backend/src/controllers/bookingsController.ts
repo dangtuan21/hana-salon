@@ -322,14 +322,23 @@ export const createBooking = asyncHandler(async (req: Request, res: Response): P
     
     // Populate the created booking for response
     const populatedBooking = await Booking.findById(newBooking._id)
-      .populate('customerId', 'firstName lastName email')
+      .populate('customerId', 'firstName lastName email phone')
       .populate('services.technicianId', 'firstName lastName employeeId')
       .populate('services.serviceId', 'name price duration_minutes');
     
     logger.info(`Created new booking: ${newBooking._id}`);
     
     // Sync booking to Google Calendar (async, don't block response)
-    BookingCalendarIntegration.createCalendarEvent(newBooking)
+    const calendarData = {
+      customerEmail: (populatedBooking?.customerId as any)?.email,
+      populatedData: {
+        customer: populatedBooking?.customerId,
+        services: populatedBooking?.services?.map((s: any) => s.serviceId) || [],
+        technicians: populatedBooking?.services?.map((s: any) => s.technicianId) || []
+      }
+    };
+    
+    BookingCalendarIntegration.createCalendarEvent(newBooking, calendarData)
       .then((result) => {
         if (result.success) {
           logger.info(`Calendar event created for booking ${newBooking._id}: ${result.eventId}`);
@@ -402,7 +411,7 @@ export const updateBooking = asyncHandler(async (req: Request, res: Response): P
         runValidators: true // Run schema validation
       }
     )
-      .populate('customerId', 'firstName lastName email')
+      .populate('customerId', 'firstName lastName email phone')
       .populate('technicianId', 'firstName lastName employeeId')
       .populate('serviceIds', 'name price')
       .select('-__v');
@@ -415,7 +424,16 @@ export const updateBooking = asyncHandler(async (req: Request, res: Response): P
     logger.info(`Updated booking: ${updatedBooking._id}`);
     
     // Sync booking changes to Google Calendar (async, don't block response)
-    BookingCalendarIntegration.updateCalendarEvent(updatedBooking)
+    const updateCalendarData = {
+      customerEmail: (updatedBooking?.customerId as any)?.email,
+      populatedData: {
+        customer: updatedBooking?.customerId,
+        services: updatedBooking?.services?.map((s: any) => s.serviceId) || [],
+        technicians: updatedBooking?.services?.map((s: any) => s.technicianId) || []
+      }
+    };
+    
+    BookingCalendarIntegration.updateCalendarEvent(updatedBooking, updateCalendarData)
       .then((result) => {
         if (result.success) {
           logger.info(`Calendar event updated for booking ${updatedBooking._id}`);
