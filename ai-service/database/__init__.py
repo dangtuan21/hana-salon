@@ -6,13 +6,14 @@ Contains database and session management classes with explicit type definitions
 from .session_manager import SessionManager
 from .booking_state import (
     BookingState, 
-    BookingStatus,
-    PaymentStatus,
+    BookingStatus, 
+    PaymentStatus, 
     PaymentMethod,
+    ConfirmationStatus,
     ServiceStatus,
     TechnicianInfo, 
     ServiceInfo, 
-    ServiceTechnicianPair,
+    ServiceTechnicianPair, 
     BookingRating
 )
 
@@ -22,6 +23,7 @@ __all__ = [
     'BookingStatus',
     'PaymentStatus',
     'PaymentMethod',
+    'ConfirmationStatus',
     'ServiceStatus',
     'TechnicianInfo', 
     'ServiceInfo', 

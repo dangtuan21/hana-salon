@@ -15,7 +15,11 @@ class DateTimeParser:
     def __init__(self):
         self.weekdays = {
             'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
-            'friday': 4, 'saturday': 5, 'sunday': 6
+            'friday': 4, 'saturday': 5, 'sunday': 6,
+            # Abbreviated forms
+            'mon': 0, 'tue': 1, 'wed': 2, 'thu': 3, 'fri': 4, 'sat': 5, 'sun': 6,
+            # Alternative abbreviations
+            'tues': 1, 'thurs': 3
         }
         
         self.time_patterns = {

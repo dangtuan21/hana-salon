@@ -3,14 +3,22 @@
 Test script to demonstrate BookingState alignment with backend IBooking
 """
 
+import sys
+import os
+import json
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from database import (
     BookingState, 
     BookingStatus, 
     PaymentStatus, 
-    ServiceTechnicianPair,
-    ServiceStatus
+    PaymentMethod,
+    ServiceStatus,
+    TechnicianInfo, 
+    ServiceInfo, 
+    ServiceTechnicianPair, 
+    BookingRating
 )
-import json
 
 def test_backend_alignment():
     print("🧪 Testing BookingState alignment with Backend IBooking")

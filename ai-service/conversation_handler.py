@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 # Import organized services and database classes
 from services import BackendAPIClient, parse_date, parse_time
-from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair
+from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair, ConfirmationStatus
 
 # Load environment variables
 load_dotenv()
@@ -30,6 +30,7 @@ llm = ChatOpenAI(
 class BookingAction(str, Enum):
     """Enum for booking actions that can be executed"""
     CHECK_AVAILABILITY = "check_availability"
+    CONFIRM_DATETIME = "confirm_datetime"
     GET_TECHNICIANS = "get_technicians"
     CREATE_BOOKING = "create_booking"
     CALCULATE_COST = "calculate_cost"
@@ -134,8 +135,8 @@ class ConversationHandler:
                     "customer_name": "ALWAYS extract full name if mentioned, even in greetings",
                     "customer_phone": "ALWAYS extract phone if mentioned in any format",
                     "services_requested": "single service name or empty string",
-                    "date_requested": "EXTRACT any date mentioned: Monday, Tuesday, tomorrow, next Friday, Dec 15, etc. If no date mentioned, use empty string",
-                    "time_requested": "EXTRACT any time mentioned: 2pm, 10:30am, 3 PM, etc. If no time mentioned, use empty string",
+                    "date_requested": "EXTRACT EXACTLY as mentioned: Monday, Tuesday, tomorrow, next Friday, Dec 15, etc. DO NOT convert relative dates to absolute dates. If no date mentioned OR if customer is confirming existing pending confirmation, use empty string",
+                    "time_requested": "EXTRACT any time mentioned: 2pm, 10:30am, 3 PM, etc. If no time mentioned OR if customer is confirming existing pending confirmation, use empty string",
                     "technician_preference": "extracted preference or current value"
                 }},
                 "actions_neededs": ["check_availability", "get_technicians", "create_booking"],
@@ -146,14 +147,78 @@ class ConversationHandler:
         ]
         
         try:
+            # First pass: Get LLM extraction only
             llm_response = llm.invoke(messages)
             response_data = json.loads(llm_response.content)
+            
+            # Check if user is confirming a pending confirmation BEFORE updating booking state
+            is_confirmation_response = self._is_confirmation_response(user_message, session_state)
+            if is_confirmation_response:
+                print(f"✅ Detected confirmation response: '{user_message}'")
+                # Automatically trigger confirm_datetime action
+                actions_taken = self._execute_actions(session_state, ["confirm_datetime"])
+                
+                # Generate simple confirmation response
+                session_state["messages"].append({
+                    "role": "assistant", 
+                    "content": "Great! Let me check the availability for your appointment.",
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+                return {
+                    "session_id": session_state["session_id"],
+                    "response": "Great! Let me check the availability for your appointment.",
+                    "booking_state": session_state["booking_state"],
+                    "conversation_complete": session_state["conversation_complete"],
+                    "actions_taken": actions_taken,
+                    "next_suggestions": []
+                }
             
             # Update booking state with LLM extracted information
             booking_updates = response_data.get("booking_state_updates", {})
             print(f"📋 LLM extracted updates: {booking_updates}")
             self._update_booking_state(session_state, booking_updates)
             print(f"🗂️ Current booking state: {session_state['booking_state']}")
+            
+            # Check if we created a pending confirmation that needs LLM attention
+            if session_state.get("pending_confirmation") and not hasattr(self, '_confirmation_handled'):
+                print(f"🔄 Pending confirmation detected, regenerating LLM response...")
+                
+                # Second pass: Regenerate LLM response with pending confirmation visible
+                updated_messages = [
+                    SystemMessage(content=self._create_system_prompt(session_state)),
+                    HumanMessage(content=f"""
+                    {self._build_conversation_context(session_state)}
+                    
+                    Current message: {user_message}
+                    
+                    CRITICAL: There is a PENDING CONFIRMATION that needs customer confirmation.
+                    
+                    If customer message is confirmation (yes, correct, that's right, etc.):
+                    - Use "confirm_datetime" action
+                    - DO NOT extract any booking_state_updates
+                    - Proceed with availability check
+                    
+                    If customer message is NOT confirmation:
+                    - Use the exact "formatted_date" and "formatted_time" from PENDING CONFIRMATION
+                    - Ask customer to confirm using the provided formatted date
+                    
+                    Return your response in this JSON format:
+                    {{
+                        "response": "Your natural response",
+                        "booking_state_updates": {{}},
+                        "actions_neededs": ["confirm_datetime" if confirming, otherwise []],
+                        "conversation_complete": false,
+                        "next_suggestions": ["What the customer might say next"]
+                    }}
+                    """)
+                ]
+                
+                # Mark that we're handling confirmation to avoid infinite loop
+                self._confirmation_handled = True
+                llm_response = llm.invoke(updated_messages)
+                response_data = json.loads(llm_response.content)
+                delattr(self, '_confirmation_handled')
             
             # Execute any needed actions
             requested_actions = response_data.get("actions_neededs", [])
@@ -236,16 +301,27 @@ class ConversationHandler:
         CURRENT BOOKING STATE:
         {json.dumps(session_state["booking_state"], indent=2)}
         
+        PENDING CONFIRMATION:
+        {json.dumps(session_state.get("pending_confirmation", {}), indent=2) if session_state.get("pending_confirmation") else "None"}
+        
+        CONFIRMATION INSTRUCTIONS:
+        - If PENDING CONFIRMATION exists, use the exact "formatted_date" and "formatted_time" in your response
+        - Example: "Please confirm Wednesday, November 19 at 3pm for your Gel Manicure appointment"
+        - DO NOT create your own date format - use the provided formatted_date
+        - If customer says "yes", "correct", "that's right" when PENDING CONFIRMATION exists, use "confirm_datetime" action
+        - DO NOT extract new date/time when customer is confirming existing pending confirmation
+        
         CONVERSATION HISTORY:
         {len(session_state["messages"])} previous messages
         
         YOUR TASKS:
         1. Extract booking information naturally from conversation
         2. Ask for missing information when needed
-        3. Check availability when you have enough details
-        4. Handle conflicts by offering alternatives
-        5. Confirm bookings when all details are ready
-        6. Be friendly, professional, and helpful
+        3. For relative dates/times, ask for confirmation before checking availability
+        4. If PENDING CONFIRMATION exists, ask customer to confirm the parsed date/time
+        5. Handle conflicts by offering alternatives
+        6. Confirm bookings when all details are ready
+        7. Be friendly, professional, and helpful
         
         IMPORTANT GUIDELINES:
         - Always be natural and conversational
@@ -258,10 +334,16 @@ class ConversationHandler:
         - If customer changes their mind, adapt gracefully
         - Pay special attention to introductions: "Hi, I'm...", "This is...", "My name is..."
         - Extract phone numbers from any format: (555) 123-4567, 555-123-4567, 5551234567
+        - ALWAYS confirm relative dates/times: "Thursday" → "Please confirm Thursday, November 20 at 3pm"
+        - Wait for customer confirmation before checking availability for relative dates
+        - If PENDING CONFIRMATION exists, ask customer "Please confirm [formatted_date] at [time] for your [service] appointment" but DO NOT use "confirm_datetime" action yet
+        - Only use "confirm_datetime" action when customer says "yes", "correct", "that's right", etc.
+        - Only use "check_availability" AFTER date/time is confirmed
         
         AVAILABLE ACTIONS:
         When you need to perform actions, use these exact action names:
         - "check_availability" - Check if requested time slots are available
+        - "confirm_datetime" - Confirm the parsed date/time with customer
         - "get_technicians" - Find technicians for requested services
         - "create_booking" - Create the final booking
         - "calculate_cost" - Calculate total cost for services
@@ -297,6 +379,10 @@ class ConversationHandler:
         booking_state_dict = session_state["booking_state"]
         booking_state = BookingState.from_dict(booking_state_dict)
         
+        # Track if we need to check for confirmation
+        date_updated = False
+        time_updated = False
+        
         for key, value in updates.items():
             if value and str(value).strip():  # Update if value is not empty
                 # Special handling for customer info - always update if provided
@@ -311,6 +397,48 @@ class ConversationHandler:
                     if value != old_value:
                         setattr(booking_state, key, value)
                         print(f"📝 Updated {key}: {value}")
+                        
+                        # Track date/time updates
+                        if key == "date_requested":
+                            date_updated = True
+                        elif key == "time_requested":
+                            time_updated = True
+        
+        # Check if we need confirmation for new date/time
+        # BUT ONLY if there's no existing pending confirmation
+        if (date_updated or time_updated) and booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING and not session_state.get("pending_confirmation"):
+            date = booking_state.date_requested
+            time = booking_state.time_requested
+            
+            if date and time:
+                from services.date_parser import parse_date, parse_time
+                parsed_date = parse_date(date)
+                parsed_time = parse_time(time)
+                
+                if parsed_date and parsed_time:
+                    needs_confirmation = self._needs_date_confirmation(date, time, parsed_date, parsed_time)
+                    if needs_confirmation:
+                        # Format the parsed date for confirmation
+                        from datetime import datetime
+                        date_obj = datetime.fromisoformat(parsed_date)
+                        day_name = date_obj.strftime("%A")  # e.g., "Wednesday"
+                        full_date = date_obj.strftime("%B %d")  # e.g., "November 19"
+                        formatted_date = f"{day_name}, {full_date}"  # e.g., "Wednesday, November 19"
+                        
+                        # Add confirmation request to session
+                        session_state["pending_confirmation"] = {
+                            "service": booking_state.services_requested,
+                            "date": parsed_date,
+                            "time": parsed_time,
+                            "formatted_date": formatted_date,
+                            "formatted_time": time,
+                            "day_name": day_name,
+                            "full_date": full_date
+                        }
+                        print(f"❓ Created pending confirmation for {formatted_date} at {time}")
+                    else:
+                        # No confirmation needed, mark as confirmed
+                        booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
         
         # Update session with modified BookingState
         session_state["booking_state"] = booking_state.to_dict()
@@ -339,6 +467,12 @@ class ConversationHandler:
                 print(f"🔍 Checking availability for service: {service_name}, date: {date}, time: {time}")
                 
                 if service_name and date and time:
+                    # Check if confirmation is pending
+                    if booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING:
+                        actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Awaiting confirmation")
+                        print(f"⏳ Awaiting date/time confirmation")
+                        return actions_taken
+                    
                     # Parse natural language date and time to proper formats
                     parsed_date = parse_date(date)
                     parsed_time = parse_time(time)
@@ -397,12 +531,37 @@ class ConversationHandler:
                             actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Service not found")
                             print(f"❌ Service '{service_name}' not found")
                 else:
+                    # Missing required information
                     missing = []
                     if not service_name: missing.append("service")
-                    if not date: missing.append("date") 
+                    if not date: missing.append("date")
                     if not time: missing.append("time")
+                    
                     actions_taken.append(f"{ActionResult.CHECKED_AVAILABILITY}: Missing {', '.join(missing)}")
                     print(f"❌ Missing info: {', '.join(missing)}")
+                
+            elif action == BookingAction.CONFIRM_DATETIME:
+                # Handle date/time confirmation
+                pending = session_state.get("pending_confirmation")
+                if pending:
+                    # Update booking state with confirmed date/time
+                    booking_state_dict = session_state["booking_state"]
+                    booking_state = BookingState.from_dict(booking_state_dict)
+                    
+                    # Mark as confirmed and set parsed date/time
+                    booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
+                    booking_state.appointmentDate = pending["date"]
+                    booking_state.startTime = pending["time"]
+                    session_state["booking_state"] = booking_state.to_dict()
+                    
+                    # Clear pending confirmation
+                    session_state.pop("pending_confirmation", None)
+                    
+                    actions_taken.append("datetime_confirmed")
+                    print(f"✅ Date/time confirmed: {pending['formatted_date']} at {pending['formatted_time']}")
+                else:
+                    actions_taken.append("no_pending_confirmation")
+                    print(f"❌ No pending confirmation found")
                 
             elif action == BookingAction.GET_TECHNICIANS:
                 # Real technician lookup
@@ -515,6 +674,54 @@ class ConversationHandler:
         """Check if booking has all required information"""
         booking_state = BookingState.from_dict(booking_state_dict)
         return booking_state.is_ready_for_booking()
+    
+    def _needs_date_confirmation(self, original_date: str, original_time: str, parsed_date: str, parsed_time: str) -> bool:
+        """Check if the parsed date/time needs confirmation from the user"""
+        # Relative dates that need confirmation
+        relative_dates = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+                         'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun', 'tues', 'thurs',
+                         'tomorrow', 'today', 'next week', 'this week']
+        
+        # Check if the original input contains relative terms
+        original_lower = original_date.lower()
+        for relative_term in relative_dates:
+            if relative_term in original_lower:
+                return True
+        
+        # Also check for ambiguous times (no AM/PM specified for times that could be either)
+        time_lower = original_time.lower()
+        if any(hour in time_lower for hour in ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']):
+            if 'am' not in time_lower and 'pm' not in time_lower:
+                # Ambiguous time without AM/PM
+                return True
+        
+        return False
+    
+    def _is_confirmation_response(self, user_message: str, session_state: Dict) -> bool:
+        """Check if user message is confirming a pending confirmation"""
+        # Only check if there's a pending confirmation
+        if not session_state.get("pending_confirmation"):
+            return False
+        
+        # Common confirmation phrases
+        confirmation_phrases = [
+            'yes', 'yeah', 'yep', 'correct', 'right', 'that\'s right', 'that\'s correct',
+            'confirm', 'confirmed', 'ok', 'okay', 'sure', 'absolutely', 'exactly',
+            'perfect', 'good', 'sounds good', 'looks good', 'that works'
+        ]
+        
+        user_lower = user_message.lower().strip()
+        
+        # Check for exact matches or phrases that start with confirmation words
+        for phrase in confirmation_phrases:
+            if user_lower == phrase or user_lower.startswith(phrase + ' '):
+                return True
+        
+        # Check for "yes" variations with punctuation
+        if user_lower in ['yes.', 'yes!', 'yes,', 'yeah.', 'yeah!', 'yep.', 'yep!']:
+            return True
+            
+        return False
     
     def get_session_info(self, session_id: str) -> Optional[Dict]:
         """Get session information"""

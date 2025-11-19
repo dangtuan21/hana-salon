@@ -3,6 +3,10 @@
 Test script to demonstrate conversation handler logging
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from conversation_handler import conversation_handler
 
 def test_conversation():
