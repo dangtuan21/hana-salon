@@ -6,7 +6,7 @@ technician lookup, and other booking-related operations.
 """
 
 from typing import Dict, List, Any
-from database.booking_state import BookingState, ServiceTechnicianPair, ConfirmationStatus, BookingStatus
+from database.booking_state import BookingState, ServiceTechnicianPair, BookingStatus
 from database.enums import BookingAction, ActionResult
 from services.date_parser import parse_date, parse_time
 from services.backend_client import BackendAPIClient
@@ -88,10 +88,7 @@ class ActionExecutor:
             print(f"❌ Missing info: {', '.join(missing)}")
             return f"{ActionResult.CHECKED_AVAILABILITY}: Missing {', '.join(missing)}"
         
-        # Only proceed if date/time is confirmed
-        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
-            print(f"⏳ Date/time not confirmed yet (status: {booking_state.dateTimeConfirmationStatus})")
-            return f"{ActionResult.CHECKED_AVAILABILITY}: Date/time not confirmed"
+        # Date/time should be collected like other data - no special confirmation needed
         
         # Parse natural language date and time to proper formats
         parsed_date = parse_date(date)
@@ -217,8 +214,7 @@ class ActionExecutor:
             booking_state_dict = session_state["booking_state"]
             booking_state = BookingState.from_dict(booking_state_dict)
             
-            # Mark as confirmed and set parsed date/time
-            booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
+            # Set parsed date/time from pending confirmation
             booking_state.appointmentDate = pending["parsed_date"]
             booking_state.startTime = pending["parsed_time"]
             session_state["booking_state"] = booking_state.to_dict()
@@ -328,9 +324,7 @@ class ActionExecutor:
             if not service.technicianId:
                 return False
         
-        # Check confirmation status
-        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
-            return False
+        # Date/time treated like other data - no special confirmation needed
             
         return True
     
@@ -348,8 +342,7 @@ class ActionExecutor:
             missing.append("start time")
         if not booking_state.services:
             missing.append("services")
-        if booking_state.dateTimeConfirmationStatus != ConfirmationStatus.CONFIRMED:
-            missing.append("date/time confirmation")
+        # Date/time treated like other data - no special confirmation needed
             
         # Check for unassigned technicians
         unassigned_count = sum(1 for service in booking_state.services if not service.technicianId)

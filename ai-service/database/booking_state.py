@@ -27,13 +27,6 @@ class PaymentMethod(str, Enum):
     DIGITAL_WALLET = "digital_wallet"
 
 
-class ConfirmationStatus(str, Enum):
-    """Date/time confirmation status enumeration"""
-    PENDING = "pending"
-    CONFIRMED = "confirmed"
-    REJECTED = "rejected"
-
-
 @dataclass
 class TechnicianInfo:
     """Technician information structure"""
@@ -104,9 +97,6 @@ class BookingState:
     available_services: List[ServiceInfo] = field(default_factory=list)
     alternative_times: List[Dict[str, Any]] = field(default_factory=list)  # Alternative time slots when conflict occurs
     
-    # Confirmation status for date/time parsing
-    dateTimeConfirmationStatus: ConfirmationStatus = ConfirmationStatus.PENDING
-    
     # === Backend IBooking Fields ===
     # These align exactly with the backend Booking model
     customerId: Optional[str] = None  # Will be set after customer creation
@@ -136,7 +126,6 @@ class BookingState:
             "date_requested": self.date_requested,
             "time_requested": self.time_requested,
             "technician_preference": self.technician_preference,
-            "dateTimeConfirmationStatus": self.dateTimeConfirmationStatus.value,
             
             # Backend IBooking fields
             "customerId": self.customerId,
@@ -203,7 +192,6 @@ class BookingState:
             date_requested=data.get("date_requested", ""),
             time_requested=data.get("time_requested", ""),
             technician_preference=data.get("technician_preference", ""),
-            dateTimeConfirmationStatus=ConfirmationStatus(data.get("dateTimeConfirmationStatus", "pending")),
             
             # Backend IBooking fields
             customerId=data.get("customerId"),

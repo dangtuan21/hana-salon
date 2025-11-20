@@ -6,7 +6,7 @@ and services array population.
 """
 
 from typing import Dict, List, Any
-from database.booking_state import BookingState, ServiceTechnicianPair, ConfirmationStatus
+from database.booking_state import BookingState, ServiceTechnicianPair
 from services.date_parser import parse_date, parse_time
 
 
@@ -49,7 +49,7 @@ class BookingManager:
         # BUT ONLY if there's no existing pending confirmation AND customer info is complete AND service is selected
         customer_info_complete = booking_state.customer_name and booking_state.customer_phone
         service_selected = booking_state.services_requested and booking_state.services_requested.strip()
-        if (date_updated or time_updated) and booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING and not session_state.get("pending_confirmation") and customer_info_complete and service_selected:
+        if (date_updated or time_updated) and not session_state.get("pending_confirmation") and customer_info_complete and service_selected:
             date = booking_state.date_requested
             time = booking_state.time_requested
             
@@ -239,7 +239,7 @@ class BookingManager:
         booking_state.time_requested = selected_alternative['time']
         booking_state.appointmentDate = '2025-11-20'  # From the alternative
         booking_state.startTime = selected_alternative['time']
-        booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
+        # Date/time confirmed - no special status needed
         
         # Calculate end time based on total duration
         if booking_state.totalDuration > 0:

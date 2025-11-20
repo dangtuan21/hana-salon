@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from services import BackendAPIClient, parse_date, parse_time
 from services.booking_manager import BookingManager
 from services.action_executor import ActionExecutor, ActionResult
-from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair, ConfirmationStatus
+from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair
 
 # Load environment variables
 load_dotenv()
@@ -184,17 +184,13 @@ class ConversationHandler:
             
             # Check if user is confirming a ready-to-book appointment
             is_ready_to_book = (all_data_collected and 
-                               booking_state.get("dateTimeConfirmationStatus") == "confirmed" and
                                user_message.lower().strip() in ['ok', 'okay', 'yes', 'confirm', 'correct'])
             
             if (is_confirmation_response or is_appointment_confirmation or is_ready_to_book) and all_data_collected:
                 print(f" Detected confirmation response: '{user_message}' - Processing booking")
                 
-                # Mark date/time as confirmed when user confirms
-                booking_state_dict = session_state["booking_state"]
-                if booking_state_dict.get("dateTimeConfirmationStatus") == "pending":
-                    booking_state_dict["dateTimeConfirmationStatus"] = "confirmed"
-                    print("✅ Date/time confirmation status updated to CONFIRMED")
+                # User confirmed - proceed with booking actions
+                print("✅ User confirmed - proceeding with booking")
                 
                 # Ensure services are populated before checking availability
                 actions_taken = self.action_executor.execute_actions(session_state, ["get_services", "check_availability"])
@@ -265,11 +261,11 @@ class ConversationHandler:
                     "actions_neededs": []
                 }
             elif all_data_collected:
-                # Check if appointment is already confirmed
-                is_already_confirmed = (booking_state.get("dateTimeConfirmationStatus") == "confirmed" and 
-                                      booking_state.get("appointmentDate") is not None)
+                # Check if appointment data is ready for booking
+                is_ready_for_booking = (booking_state.get("appointmentDate") is not None and
+                                      booking_state.get("startTime") is not None)
                 
-                if is_already_confirmed:
+                if is_ready_for_booking:
                     print("🔄 STEP 5: Appointment already confirmed - creating booking")
                     response_data = {
                         "response": "Perfect! Let me finalize your appointment details.",
@@ -354,11 +350,10 @@ class ConversationHandler:
             # Special handling for create_booking - ensure all prerequisites are met
             if "create_booking" in requested_actions:
                 booking_state = session_state["booking_state"]
-                if (booking_state.get("dateTimeConfirmationStatus") == "pending" and 
-                    booking_state.get("appointmentDate") is None):
-                    # Need to confirm datetime first
-                    print("🔄 Booking requested but datetime not confirmed, triggering confirmation flow")
-                    requested_actions = ["confirm_datetime", "check_availability", "create_booking"]
+                if booking_state.get("appointmentDate") is None:
+                    # Need to parse date/time first
+                    print("🔄 Booking requested but date/time not parsed, triggering availability check")
+                    requested_actions = ["check_availability", "create_booking"]
             
             actions_taken = self.action_executor.execute_actions(session_state, requested_actions)
             
@@ -571,10 +566,9 @@ class ConversationHandler:
         has_customer_info = booking_state.get("customer_name") and booking_state.get("customer_phone")
         has_service = booking_state.get("services_requested")
         has_datetime = booking_state.get("date_requested") and booking_state.get("time_requested")
-        not_confirmed = booking_state.get("dateTimeConfirmationStatus") == "pending"
         no_appointment_date = not booking_state.get("appointmentDate")
         
-        if not (has_customer_info and has_service and has_datetime and not_confirmed and no_appointment_date):
+        if not (has_customer_info and has_service and has_datetime and no_appointment_date):
             return False
         
         # Common confirmation phrases
