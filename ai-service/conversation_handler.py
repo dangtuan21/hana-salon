@@ -16,9 +16,8 @@ from dotenv import load_dotenv
 # Import organized services and database classes
 from services import BackendAPIClient, parse_date, parse_time
 from services.booking_manager import BookingManager
-from services.action_executor import ActionExecutor
+from services.action_executor import ActionExecutor, ActionResult
 from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair, ConfirmationStatus
-from database.enums import BookingAction, ActionResult
 
 # Load environment variables
 load_dotenv()
@@ -179,12 +178,11 @@ class ConversationHandler:
                         # Extract alternative times from the result
                         alternatives_text = str(availability_result).split("Available alternatives on")[1] if "Available alternatives on" in str(availability_result) else "some alternative times"
                         response_text = f"I found a scheduling conflict with your requested time. However, I have some great alternatives available{alternatives_text}. Which time would work better for you?"
-                    elif str(availability_result) == "ActionResult.CHECKED_AVAILABILITY":
-                        # No conflict, booking is available
-                        response_text = "✅ Booking Complete! Your appointment has been confirmed."
-                        # Trigger booking creation
+                    elif availability_result == ActionResult.CHECKED_AVAILABILITY:
+                        # No conflict, booking is available - proceed with booking creation
                         booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
                         actions_taken.extend(booking_actions)
+                        response_text = "Your appointment is being confirmed..."
                     else:
                         response_text = "Let me check the availability details and get back to you."
                 else:
@@ -234,7 +232,7 @@ class ConversationHandler:
                 if is_already_confirmed:
                     print("🔄 STEP 5: Appointment already confirmed - creating booking")
                     response_data = {
-                        "response": "✅ Booking Complete! Your appointment has been confirmed.",
+                        "response": "Perfect! Let me finalize your appointment details.",
                         "actions_neededs": ["create_booking"]
                     }
                 else:
