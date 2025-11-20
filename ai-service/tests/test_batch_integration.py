@@ -69,38 +69,6 @@ class TestBatchAvailabilityIntegration(unittest.TestCase):
             self.assertIn(tech_result['technicianId'], technician_ids)
             self.assertIsInstance(tech_result['available'], bool)
 
-    def test_batch_vs_individual_consistency(self):
-        """Test that batch and individual availability checks return consistent results"""
-        technician_ids = [tech['_id'] for tech in self.technicians[:2]]
-        test_date = '2024-12-01'
-        test_time = '14:00'
-        test_duration = 60
-        
-        # Get batch results
-        batch_result = self.api_client.batch_check_technician_availability(
-            technician_ids, test_date, test_time, test_duration
-        )
-        
-        # Get individual results
-        individual_results = {}
-        for tech_id in technician_ids:
-            individual_result = self.api_client.check_technician_availability(
-                tech_id, test_date, test_time, test_duration
-            )
-            individual_results[tech_id] = individual_result.get('available', False)
-        
-        # Compare results
-        self.assertEqual(len(batch_result['results']), len(technician_ids))
-        
-        for batch_tech in batch_result['results']:
-            tech_id = batch_tech['technicianId']
-            batch_available = batch_tech['available']
-            individual_available = individual_results[tech_id]
-            
-            self.assertEqual(
-                batch_available, individual_available,
-                f"Batch and individual results differ for technician {tech_id}"
-            )
 
     def test_find_best_technician_integration(self):
         """Test _find_best_technician with real API calls"""
@@ -127,37 +95,26 @@ class TestBatchAvailabilityIntegration(unittest.TestCase):
             self.assertIn('lastName', result)
             self.assertIn('skillLevel', result)
 
-    def test_performance_comparison(self):
-        """Test performance improvement of batch vs individual calls"""
+    def test_batch_performance(self):
+        """Test batch availability check performance"""
         technician_ids = [tech['_id'] for tech in self.technicians]
         test_date = '2024-12-01'
         test_time = '16:00'
         test_duration = 60
         
-        # Time individual calls
-        start_time = time.time()
-        for tech_id in technician_ids:
-            self.api_client.check_technician_availability(
-                tech_id, test_date, test_time, test_duration
-            )
-        individual_time = time.time() - start_time
-        
         # Time batch call
         start_time = time.time()
-        self.api_client.batch_check_technician_availability(
+        result = self.api_client.batch_check_technician_availability(
             technician_ids, test_date, test_time, test_duration
         )
         batch_time = time.time() - start_time
         
-        print(f"\nPerformance comparison for {len(technician_ids)} technicians:")
-        print(f"Individual calls: {individual_time:.3f}s")
+        print(f"\nBatch performance for {len(technician_ids)} technicians:")
         print(f"Batch call: {batch_time:.3f}s")
-        print(f"Improvement: {individual_time/batch_time:.1f}x faster")
         
-        # Batch should be faster (or at least not significantly slower)
-        # Allow some tolerance for network variability
-        self.assertLessEqual(batch_time, individual_time * 1.5, 
-                           "Batch call should not be significantly slower than individual calls")
+        # Verify the call succeeded
+        self.assertIn('results', result)
+        self.assertEqual(len(result['results']), len(technician_ids))
 
     def test_full_booking_flow_with_batch(self):
         """Test complete booking flow using batch availability"""
@@ -264,40 +221,6 @@ class TestBatchAvailabilityIntegration(unittest.TestCase):
         self.assertGreater(success_count, 0, "At least one concurrent request should succeed")
 
 
-class TestBatchAvailabilityFallback(unittest.TestCase):
-    """Test fallback mechanisms when batch API is unavailable"""
-    
-    def setUp(self):
-        """Set up test fixtures"""
-        self.api_client = BackendAPIClient("http://localhost:3060")
-        self.action_executor = ActionExecutor(self.api_client)
-
-    def test_fallback_to_individual_when_batch_fails(self):
-        """Test fallback to individual calls when batch endpoint fails"""
-        technicians = [
-            {
-                '_id': 'tech1',
-                'firstName': 'John',
-                'lastName': 'Doe',
-                'skillLevel': 'Senior',
-                'rating': 4.8
-            }
-        ]
-        
-        # Mock batch failure and individual success
-        with patch.object(self.api_client, 'batch_check_technician_availability') as mock_batch:
-            with patch.object(self.api_client, 'check_technician_availability') as mock_individual:
-                mock_batch.return_value = {}  # Simulate batch failure
-                mock_individual.return_value = {'available': True}
-                
-                result = self.action_executor._find_best_technician(
-                    technicians, 'service1', '2024-12-01', '10:00', 60
-                )
-                
-                # Should fallback to individual and succeed
-                self.assertEqual(result, technicians[0])
-                mock_batch.assert_called_once()
-                mock_individual.assert_called_once()
 
 
 if __name__ == '__main__':

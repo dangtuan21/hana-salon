@@ -202,19 +202,7 @@ class ActionExecutor:
                 
                 print(f"❌ {technician.get('firstName')} {technician.get('lastName')} is not available")
         else:
-            print("❌ Batch availability check failed, falling back to individual checks")
-            # Fallback to original method if batch fails
-            for technician in sorted_technicians:
-                tech_id = technician.get('_id')
-                print(f"🔍 Checking {technician.get('firstName')} {technician.get('lastName')} ({technician.get('skillLevel')}, Rating: {technician.get('rating')})")
-                
-                availability = self.api_client.check_technician_availability(tech_id, date, start_time, duration)
-                
-                if availability.get('available'):
-                    print(f"✅ {technician.get('firstName')} {technician.get('lastName')} is available")
-                    return technician
-                else:
-                    print(f"❌ {technician.get('firstName')} {technician.get('lastName')} is not available")
+            print("❌ Batch availability check failed")
         
         # No technician available
         return None

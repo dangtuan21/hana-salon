@@ -154,26 +154,19 @@ class TestBatchAvailability(unittest.TestCase):
             # Should return tech3 (Senior with highest rating)
             self.assertEqual(result['_id'], 'tech3')
 
-    def test_find_best_technician_fallback_to_individual(self):
-        """Test fallback to individual checks when batch fails"""
+    def test_find_best_technician_batch_failure(self):
+        """Test behavior when batch check fails"""
         with patch.object(self.api_client, 'batch_check_technician_availability') as mock_batch:
-            with patch.object(self.api_client, 'check_technician_availability') as mock_individual:
-                # Mock batch failure
-                mock_batch.return_value = {}
-                
-                # Mock individual success for first technician
-                mock_individual.return_value = {'available': True}
-                
-                result = self.action_executor._find_best_technician(
-                    self.mock_technicians, 'service1', '2024-12-01', '10:00', 60
-                )
-                
-                # Should fallback to individual checks
-                mock_batch.assert_called_once()
-                mock_individual.assert_called_once_with('tech1', '2024-12-01', '10:00', 60)
-                
-                # Should return first available technician
-                self.assertEqual(result, self.mock_technicians[0])
+            # Mock batch failure
+            mock_batch.return_value = {}
+            
+            result = self.action_executor._find_best_technician(
+                self.mock_technicians, 'service1', '2024-12-01', '10:00', 60
+            )
+            
+            # Should return None when batch fails
+            mock_batch.assert_called_once()
+            self.assertIsNone(result)
 
     def test_find_best_technician_no_available(self):
         """Test when no technicians are available"""
@@ -305,17 +298,13 @@ class TestBatchAvailabilityEdgeCases(unittest.TestCase):
             
             technicians = [{'_id': 'tech1', 'firstName': 'John', 'lastName': 'Doe', 'skillLevel': 'Senior', 'rating': 4.8}]
             
-            # Mock individual check to return available
-            with patch.object(self.api_client, 'check_technician_availability') as mock_individual:
-                mock_individual.return_value = {'available': True}
-                
-                # Should handle malformed response gracefully
-                result = self.action_executor._find_best_technician(
-                    technicians, 'service1', '2024-12-01', '10:00', 60
-                )
-                
-                # Should fallback to individual checks and return technician
-                self.assertIsNotNone(result)
+            # Should handle malformed response gracefully
+            result = self.action_executor._find_best_technician(
+                technicians, 'service1', '2024-12-01', '10:00', 60
+            )
+            
+            # Should return None when batch response is malformed
+            self.assertIsNone(result)
 
 
 if __name__ == '__main__':
