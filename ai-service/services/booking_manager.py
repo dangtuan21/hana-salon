@@ -46,9 +46,10 @@ class BookingManager:
         self.populate_services_if_ready(booking_state, session_state)
         
         # Check if we need confirmation for new date/time
-        # BUT ONLY if there's no existing pending confirmation AND customer info is complete
+        # BUT ONLY if there's no existing pending confirmation AND customer info is complete AND service is selected
         customer_info_complete = booking_state.customer_name and booking_state.customer_phone
-        if (date_updated or time_updated) and booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING and not session_state.get("pending_confirmation") and customer_info_complete:
+        service_selected = booking_state.services_requested and booking_state.services_requested.strip()
+        if (date_updated or time_updated) and booking_state.dateTimeConfirmationStatus == ConfirmationStatus.PENDING and not session_state.get("pending_confirmation") and customer_info_complete and service_selected:
             date = booking_state.date_requested
             time = booking_state.time_requested
             
@@ -146,7 +147,10 @@ class BookingManager:
                     service_duration = available_service.get('duration_minutes', 0)
                     service_price = available_service.get('price', 0.0)
                 
-                if service_name_check == service_name.lower():
+                # Use partial matching for better service name recognition
+                if (service_name_check == service_name.lower() or 
+                    service_name.lower() in service_name_check or 
+                    service_name_check in service_name.lower()):
                     matching_service = {
                         '_id': service_id,
                         'name': service_name,
@@ -201,3 +205,67 @@ class BookingManager:
                 return True
         
         return False
+    
+    def process_alternative_selection(self, session_state: Dict, user_input: str) -> bool:
+        """Process user selection of an alternative time slot"""
+        booking_state = BookingState.from_dict(session_state["booking_state"])
+        
+        # Check if there are alternative times available
+        if not booking_state.alternative_times:
+            return False
+        
+        # Clean user input
+        user_time = user_input.lower().strip().replace('.', ':')
+        
+        # Look for matching alternative time
+        selected_alternative = None
+        for alt in booking_state.alternative_times:
+            alt_time = alt.get('time', '').lower()
+            # Match formats like "10:30", "10.30", "1030", "10" -> "10:00"
+            if (alt_time == user_time or 
+                alt_time.replace(':', '') == user_time.replace(':', '') or
+                alt_time == user_time.replace('.', ':') or
+                alt_time.startswith(user_time + ':') or  # "10:00" starts with "10:"
+                (user_time.isdigit() and alt_time.startswith(user_time + ':00'))):  # "10" matches "10:00"
+                selected_alternative = alt
+                break
+        
+        if not selected_alternative:
+            return False
+        
+        print(f"🎯 Selected alternative: {selected_alternative}")
+        
+        # Update booking state with selected alternative
+        booking_state.time_requested = selected_alternative['time']
+        booking_state.appointmentDate = '2025-11-20'  # From the alternative
+        booking_state.startTime = selected_alternative['time']
+        booking_state.dateTimeConfirmationStatus = ConfirmationStatus.CONFIRMED
+        
+        # Calculate end time based on total duration
+        if booking_state.totalDuration > 0:
+            from datetime import datetime, timedelta
+            try:
+                start_time_obj = datetime.strptime(selected_alternative['time'], "%H:%M")
+                end_time_obj = start_time_obj + timedelta(minutes=booking_state.totalDuration)
+                booking_state.endTime = end_time_obj.strftime("%H:%M")
+                print(f"⏰ Calculated end time: {booking_state.startTime} + {booking_state.totalDuration}min = {booking_state.endTime}")
+            except Exception as e:
+                print(f"❌ Error calculating end time: {e}")
+                booking_state.endTime = None
+        
+        # Assign technician to the service
+        technician_id = selected_alternative.get('technician_id')
+        if technician_id and booking_state.services:
+            for service in booking_state.services:
+                if not service.technicianId:  # Only assign if not already assigned
+                    service.technicianId = technician_id
+                    print(f"✅ Assigned technician {selected_alternative.get('technician')} to service")
+        
+        # Clear alternatives since one was selected
+        booking_state.alternative_times = []
+        
+        # Update session state
+        session_state["booking_state"] = booking_state.to_dict()
+        
+        print(f"✅ Updated appointment to {selected_alternative['time']} with {selected_alternative.get('technician')}")
+        return True

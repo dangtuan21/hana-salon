@@ -56,7 +56,7 @@ const CustomerSchema = new Schema<ICustomer>({
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
-    match: [/^(\d{3}-\d{3}-\d{4}|\d+)$/, 'Please enter a valid phone number (XXX-XXX-XXXX or digits only)']
+    match: [/^(\d{3}-\d{3}-\d{4}|\d+|\+\d+|[\d\s\-\(\)]+)$/, 'Please enter a valid phone number']
   },
   dateOfBirth: {
     type: Date,
@@ -165,8 +165,12 @@ CustomerSchema.pre('save', function(next) {
     const digits = this.phone.replace(/\D/g, ''); // Remove all non-digits
     if (digits.length === 10) {
       this.phone = `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    } else if (digits.length < 10) {
+      // For phone numbers less than 10 digits, preserve original format (trim only)
+      this.phone = this.phone.trim();
     } else {
-      this.phone = digits; // Keep as digits only for other lengths
+      // For phone numbers longer than 10 digits, keep as digits only
+      this.phone = digits;
     }
   }
   

@@ -48,6 +48,11 @@ class ConversationHandler:
         session_id = self.session_manager.create_session(customer_phone)
         session_state = self.session_manager.get_session(session_id)
         
+        # Preload services and technicians at session start
+        print("🔄 Preloading services and technicians for new session...")
+        preload_actions = self.action_executor.execute_actions(session_state, ["get_services", "get_technicians"])
+        print(f"✅ Preloaded: {len(preload_actions)} actions completed")
+        
         # Process the initial message
         response = self._process_message(session_state, message)
         
@@ -121,14 +126,43 @@ class ConversationHandler:
         ]
         
         try:
-            # First pass: Get LLM extraction only
+            # First pass: Get LLM extraction only to update booking state
             llm_response = llm.invoke(messages)
-            response_data = json.loads(llm_response.content)
+            original_response_data = json.loads(llm_response.content)
             
-            # Check if user is confirming a pending confirmation BEFORE updating booking state
+            # Update booking state with LLM extracted information FIRST
+            booking_updates = original_response_data.get("booking_state_updates", {})
+            print(f"📋 LLM extracted updates: {booking_updates}")
+            self.booking_manager.update_booking_state(session_state, booking_updates)
+            
+            # Check if user is selecting an alternative time
+            alternative_selected = self.booking_manager.process_alternative_selection(session_state, user_message)
+            if alternative_selected:
+                print(f"🎯 Alternative time selected, proceeding to create booking")
+            
+            print(f"🗂️ Current booking state: {session_state['booking_state']}")
+            
+            # IMPLEMENT SEQUENTIAL FLOW - Check what data we have and what's missing
+            booking_state = session_state["booking_state"]
+            
+            # Check data collection status
+            name_collected = bool(booking_state.get("customer_name"))
+            phone_collected = bool(booking_state.get("customer_phone"))
+            service_collected = bool(booking_state.get("services_requested"))
+            date_collected = bool(booking_state.get("date_requested"))
+            time_collected = bool(booking_state.get("time_requested"))
+            
+            all_data_collected = (name_collected and phone_collected and 
+                                service_collected and date_collected and time_collected)
+            
+            print(f"📊 Data Status: name={name_collected}, phone={phone_collected}, service={service_collected}, date={date_collected}, time={time_collected}")
+            
+            # Check if user is confirming appointment details
             is_confirmation_response = self._is_confirmation_response(user_message, session_state)
-            if is_confirmation_response:
-                print(f"✅ Detected confirmation response: '{user_message}'")
+            is_appointment_confirmation = self._is_appointment_confirmation(user_message, session_state)
+            
+            if (is_confirmation_response or is_appointment_confirmation) and all_data_collected:
+                print(f"✅ Detected confirmation response: '{user_message}' - Processing booking")
                 # Automatically trigger confirm_datetime and check_availability actions
                 actions_taken = self.action_executor.execute_actions(session_state, ["confirm_datetime", "check_availability"])
                 
@@ -145,11 +179,9 @@ class ConversationHandler:
                         # Extract alternative times from the result
                         alternatives_text = str(availability_result).split("Available alternatives on")[1] if "Available alternatives on" in str(availability_result) else "some alternative times"
                         response_text = f"I found a scheduling conflict with your requested time. However, I have some great alternatives available{alternatives_text}. Which time would work better for you?"
-                    elif "No availability" in str(availability_result):
-                        response_text = "I'm sorry, but there's no availability on your requested date. Could you try a different date?"
                     elif str(availability_result) == "ActionResult.CHECKED_AVAILABILITY":
                         # No conflict, booking is available
-                        response_text = "Perfect! Your appointment is available and confirmed. Let me create your booking."
+                        response_text = "✅ Booking Complete! Your appointment has been confirmed."
                         # Trigger booking creation
                         booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
                         actions_taken.extend(booking_actions)
@@ -173,11 +205,68 @@ class ConversationHandler:
                     "next_suggestions": []
                 }
             
-            # Update booking state with LLM extracted information
-            booking_updates = response_data.get("booking_state_updates", {})
-            print(f"📋 LLM extracted updates: {booking_updates}")
-            self.booking_manager.update_booking_state(session_state, booking_updates)
-            print(f"🗂️ Current booking state: {session_state['booking_state']}")
+            # SEQUENTIAL FLOW: Ask for missing information in order
+            if not name_collected or not phone_collected:
+                print("🔄 STEP 1: Missing customer info - asking for name and phone")
+                response_data = {
+                    "response": "Hi! Could I get your name and phone number?",
+                    "actions_neededs": []  # Services already preloaded at session start
+                }
+            elif not service_collected:
+                print("🔄 STEP 2: Missing service - asking for service selection")
+                customer_name = booking_state.get("customer_name", "")
+                response_data = {
+                    "response": f"Thank you, {customer_name}! What service would you like to book today?",
+                    "actions_neededs": []  # Services already preloaded at session start
+                }
+            elif not date_collected or not time_collected:
+                print("🔄 STEP 3: Missing date/time - asking for appointment time")
+                service_name = booking_state.get("services_requested", "service")
+                response_data = {
+                    "response": f"Great choice with the {service_name}! When would you like your appointment?",
+                    "actions_neededs": []
+                }
+            elif all_data_collected:
+                # Check if appointment is already confirmed
+                is_already_confirmed = (booking_state.get("dateTimeConfirmationStatus") == "confirmed" and 
+                                      booking_state.get("appointmentDate") is not None)
+                
+                if is_already_confirmed:
+                    print("🔄 STEP 5: Appointment already confirmed - creating booking")
+                    response_data = {
+                        "response": "✅ Booking Complete! Your appointment has been confirmed.",
+                        "actions_neededs": ["create_booking"]
+                    }
+                else:
+                    print("🔄 STEP 4: All data collected - asking for confirmation")
+                    # Generate confirmation message
+                    service_name = booking_state.get("services_requested", "service")
+                    date_str = booking_state.get("date_requested", "")
+                    time_str = booking_state.get("time_requested", "")
+                    
+                    # Try to format the date nicely
+                    try:
+                        from services.date_time_parser import parse_date, format_date_for_display
+                        parsed_date = parse_date(date_str)
+                        if parsed_date:
+                            formatted_date = format_date_for_display(parsed_date)
+                        else:
+                            formatted_date = date_str
+                    except:
+                        formatted_date = date_str
+                    
+                    response_data = {
+                        "response": f"Please confirm your {service_name} appointment on {formatted_date} at {time_str}.",
+                        "actions_neededs": []
+                    }
+            else:
+                # Fallback - let LLM handle
+                print("🔄 Fallback: Letting LLM handle the conversation")
+                response_data = None
+            
+            # If we didn't override response_data, use the original LLM response
+            if response_data is None:
+                response_data = original_response_data
             
             # Check if we created a pending confirmation that needs LLM attention
             if session_state.get("pending_confirmation") and not hasattr(self, '_confirmation_handled'):
@@ -222,6 +311,16 @@ class ConversationHandler:
             # Execute any needed actions
             requested_actions = response_data.get("actions_neededs", [])
             print(f"🎯 LLM requested actions: {requested_actions}")
+            
+            # Special handling for create_booking - ensure all prerequisites are met
+            if "create_booking" in requested_actions:
+                booking_state = session_state["booking_state"]
+                if (booking_state.get("dateTimeConfirmationStatus") == "pending" and 
+                    booking_state.get("appointmentDate") is None):
+                    # Need to confirm datetime first
+                    print("🔄 Booking requested but datetime not confirmed, triggering confirmation flow")
+                    requested_actions = ["confirm_datetime", "check_availability", "create_booking"]
+            
             actions_taken = self.action_executor.execute_actions(session_state, requested_actions)
             
             # Add assistant message to history
@@ -271,28 +370,39 @@ class ConversationHandler:
     def _create_system_prompt(self, session_state: Dict) -> str:
         """Create a comprehensive system prompt for the LLM"""
         
-        # Get real data from API
-        services = self.api_client.get_all_services()
-        technicians = self.api_client.get_available_technicians()
-        
-        # Update BookingState with available services and technicians
+        # Use preloaded data from booking state (loaded at session start)
         booking_state_dict = session_state["booking_state"]
         booking_state = BookingState.from_dict(booking_state_dict)
-        booking_state.available_services = services
-        booking_state.available_technicians = technicians
-        session_state["booking_state"] = booking_state.to_dict()
+        
+        # Get preloaded services and technicians
+        services = booking_state.available_services or []
+        technicians = booking_state.available_technicians or []
         
         # Format services
         services_text = ""
         for service in services:
-            services_text += f"- {service.get('name')}: ${service.get('price')}, {service.get('duration_minutes')} minutes\n"
+            # Handle both dict and ServiceInfo object formats
+            if hasattr(service, 'name'):
+                # ServiceInfo object
+                services_text += f"- {service.name}: ${service.price}, {service.duration_minutes} minutes\n"
+            else:
+                # Dict format (fallback)
+                services_text += f"- {service.get('name')}: ${service.get('price')}, {service.get('duration_minutes')} minutes\n"
         
         # Format technicians
         technicians_text = ""
         for tech in technicians:
-            name = f"{tech.get('firstName')} {tech.get('lastName')}"
-            level = tech.get('skillLevel', 'Technician')
-            specialties = ", ".join(tech.get('specialties', []))
+            # Handle both dict and TechnicianInfo object formats
+            if hasattr(tech, 'firstName'):
+                # TechnicianInfo object
+                name = f"{tech.firstName} {tech.lastName}"
+                level = tech.skillLevel or 'Technician'
+                specialties = ", ".join(tech.specialties or [])
+            else:
+                # Dict format (fallback)
+                name = f"{tech.get('firstName')} {tech.get('lastName')}"
+                level = tech.get('skillLevel', 'Technician')
+                specialties = ", ".join(tech.get('specialties', []))
             technicians_text += f"- {name} ({level}): {specialties}\n"
         
         return f"""
@@ -324,8 +434,9 @@ class ConversationHandler:
         YOUR TASKS (IN PRIORITY ORDER):
         1. Extract booking information naturally from conversation
         2. FIRST PRIORITY: Ask for missing CUSTOMER INFO (name and phone) before anything else
-        3. SECOND PRIORITY: Ask for missing service/date/time information
-        4. THIRD PRIORITY: For relative dates/times, ask for confirmation before checking availability
+        3. SECOND PRIORITY: Ask for SERVICE SELECTION before date/time - "What service would you like to book today?"
+        4. THIRD PRIORITY: Ask for date/time information ONLY after service is selected
+        5. FOURTH PRIORITY: For relative dates/times, ask for confirmation before checking availability
         5. If PENDING CONFIRMATION exists, ask customer to confirm the parsed date/time
         6. Handle conflicts by offering alternatives
         7. Confirm bookings when all details are ready
@@ -335,9 +446,11 @@ class ConversationHandler:
         - Always be natural and conversational
         - IMMEDIATELY capture customer name and phone when mentioned (even in greetings!)
         - Ask for one piece of missing information at a time
-        - NEVER proceed with date/time confirmation if customer name or phone is missing
+        - NEVER proceed with date/time confirmation if customer name, phone, or service is missing
         - Ask "Could I get your name and phone number?" if either is missing
-        - If customer info is complete but date/time is missing, ask "When would you like your appointment?"
+        - If customer info is complete but service is missing, ask "What service would you like to book today?"
+        - If customer info and service are complete but date/time is missing, ask "When would you like your appointment?"
+        - NEVER create pending confirmations without service selection
         - NEVER use placeholder text like "[insert formatted_date]" - always use real data or ask for missing info
         - Only proceed with service/date/time confirmation AFTER customer info is collected
         - Offer specific alternatives when there are conflicts
@@ -409,6 +522,36 @@ class ConversationHandler:
         if user_lower in ['yes.', 'yes!', 'yes,', 'yeah.', 'yeah!', 'yep.', 'yep!']:
             return True
             
+        return False
+    
+    def _is_appointment_confirmation(self, user_message: str, session_state: Dict) -> bool:
+        """Check if user message is confirming appointment details even without pending confirmation"""
+        booking_state = session_state.get("booking_state", {})
+        
+        # Only check if we have all the basic info but no confirmed appointment
+        has_customer_info = booking_state.get("customer_name") and booking_state.get("customer_phone")
+        has_service = booking_state.get("services_requested")
+        has_datetime = booking_state.get("date_requested") and booking_state.get("time_requested")
+        not_confirmed = booking_state.get("dateTimeConfirmationStatus") == "pending"
+        no_appointment_date = not booking_state.get("appointmentDate")
+        
+        if not (has_customer_info and has_service and has_datetime and not_confirmed and no_appointment_date):
+            return False
+        
+        # Common confirmation phrases
+        confirmation_phrases = [
+            'yes', 'yeah', 'yep', 'correct', 'right', 'that\'s right', 'that\'s correct',
+            'confirm', 'confirmed', 'ok', 'okay', 'sure', 'absolutely', 'exactly',
+            'perfect', 'good', 'sounds good', 'looks good', 'that works'
+        ]
+        
+        user_lower = user_message.lower().strip()
+        
+        # Check for exact matches or phrases that start with confirmation words
+        for phrase in confirmation_phrases:
+            if user_lower == phrase or user_lower.startswith(phrase + ' '):
+                return True
+        
         return False
     
     def get_session_info(self, session_id: str) -> Optional[Dict]:

@@ -11,6 +11,10 @@ import os
 import signal
 import threading
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 class BookingSystemLauncher:
     """Manages launching and stopping the booking system components"""

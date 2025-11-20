@@ -386,20 +386,20 @@ class ActionExecutor:
             return None
     
     def _format_phone_number(self, phone: str) -> str:
-        """Format phone number to a valid format"""
+        """Format phone number - preserve original format"""
         if not phone:
             return ""
         
-        # Remove all non-digit characters
-        digits = ''.join(filter(str.isdigit, phone))
+        # Keep the original phone number as entered by the user
+        # Only clean up obvious formatting issues but preserve the core number
+        cleaned = phone.strip()
         
-        # Simple formatting: only add dashes for 10-digit numbers
-        if len(digits) == 10:
-            # Format as XXX-XXX-XXXX
-            return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+        # If it's all digits and 10 digits long, format nicely
+        if cleaned.isdigit() and len(cleaned) == 10:
+            return f"{cleaned[:3]}-{cleaned[3:6]}-{cleaned[6:]}"
         else:
-            # Keep as-is for all other lengths
-            return digits
+            # Keep original format for all other cases
+            return cleaned
     
     def _calculate_cost(self, session_state: Dict) -> str:
         """Calculate cost for requested services"""
