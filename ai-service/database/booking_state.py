@@ -19,14 +19,6 @@ class BookingStatus(str, Enum):
     NO_SHOW = "no_show"
 
 
-class PaymentStatus(str, Enum):
-    """Payment status enumeration - aligned with backend IBooking"""
-    PENDING = "pending"
-    PAID = "paid"
-    REFUNDED = "refunded"
-    FAILED = "failed"
-
-
 class PaymentMethod(str, Enum):
     """Payment method enumeration - aligned with backend IBooking"""
     CASH = "cash"
@@ -40,13 +32,6 @@ class ConfirmationStatus(str, Enum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
     REJECTED = "rejected"
-
-
-class ServiceStatus(str, Enum):
-    """Service status enumeration - aligned with backend IServiceTechnicianPair"""
-    SCHEDULED = "scheduled"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
 
 
 @dataclass
@@ -84,7 +69,7 @@ class ServiceTechnicianPair:
     technicianId: str
     duration: int  # Duration for this specific service
     price: float   # Price for this specific service
-    status: ServiceStatus = ServiceStatus.SCHEDULED
+    status: str = "scheduled"
     notes: Optional[str] = None  # Service-specific notes
 
 
@@ -132,7 +117,7 @@ class BookingState:
     status: BookingStatus = BookingStatus.SCHEDULED
     totalDuration: int = 0                # Sum of all service durations
     totalPrice: float = 0.0               # Sum of all service prices
-    paymentStatus: PaymentStatus = PaymentStatus.PENDING
+    paymentStatus: str = "pending"
     paymentMethod: Optional[PaymentMethod] = None
     notes: Optional[str] = None           # General booking notes
     customerNotes: Optional[str] = None
@@ -161,7 +146,7 @@ class BookingState:
                     "technicianId": svc.technicianId,
                     "duration": svc.duration,
                     "price": svc.price,
-                    "status": svc.status.value,
+                    "status": svc.status,
                     "notes": svc.notes
                 } for svc in self.services
             ],
@@ -171,7 +156,7 @@ class BookingState:
             "status": self.status.value,
             "totalDuration": self.totalDuration,
             "totalPrice": self.totalPrice,
-            "paymentStatus": self.paymentStatus.value,
+            "paymentStatus": self.paymentStatus,
             "paymentMethod": self.paymentMethod.value if self.paymentMethod else None,
             "notes": self.notes,
             "customerNotes": self.customerNotes,
@@ -228,7 +213,7 @@ class BookingState:
             status=BookingStatus(data.get("status", "scheduled")),
             totalDuration=data.get("totalDuration", 0),
             totalPrice=data.get("totalPrice", 0.0),
-            paymentStatus=PaymentStatus(data.get("paymentStatus", "pending")),
+            paymentStatus=data.get("paymentStatus", "pending"),
             paymentMethod=PaymentMethod(data.get("paymentMethod")) if data.get("paymentMethod") else None,
             notes=data.get("notes"),
             customerNotes=data.get("customerNotes"),
@@ -244,7 +229,7 @@ class BookingState:
                 technicianId=svc_data["technicianId"],
                 duration=svc_data["duration"],
                 price=svc_data["price"],
-                status=ServiceStatus(svc_data.get("status", "scheduled")),
+                status=svc_data.get("status", "scheduled"),
                 notes=svc_data.get("notes")
             )
             booking_state.services.append(service_pair)
@@ -319,7 +304,7 @@ class BookingState:
                     "technicianId": svc.technicianId,
                     "duration": svc.duration,
                     "price": svc.price,
-                    "status": svc.status.value,
+                    "status": svc.status,
                     "notes": svc.notes
                 } for svc in self.services
             ],
@@ -329,7 +314,7 @@ class BookingState:
             "status": self.status.value,
             "totalDuration": self.totalDuration,
             "totalPrice": self.totalPrice,
-            "paymentStatus": self.paymentStatus.value,
+            "paymentStatus": self.paymentStatus,
             "notes": self.notes,
             "customerNotes": self.customerNotes,
             "reminderSent": self.reminderSent,

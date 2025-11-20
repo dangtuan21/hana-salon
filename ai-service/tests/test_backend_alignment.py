@@ -11,9 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from database import (
     BookingState, 
     BookingStatus, 
-    PaymentStatus, 
     PaymentMethod,
-    ServiceStatus,
     TechnicianInfo, 
     ServiceInfo, 
     ServiceTechnicianPair, 
@@ -41,7 +39,7 @@ def test_backend_alignment():
         status=BookingStatus.CONFIRMED,
         totalDuration=45,
         totalPrice=35.0,
-        paymentStatus=PaymentStatus.PENDING,
+        paymentStatus="pending",
         notes="Customer prefers window seat"
     )
     
@@ -51,7 +49,7 @@ def test_backend_alignment():
         technicianId="tech456", 
         duration=45,
         price=35.0,
-        status=ServiceStatus.SCHEDULED,
+        status="scheduled",
         notes="Use gentle polish"
     )
     booking_state.services.append(service_pair)
