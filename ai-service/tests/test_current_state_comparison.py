@@ -18,6 +18,7 @@ def compare_booking_state():
     
     # Get the latest booking from database
     print("📊 Step 1: Getting latest booking from database...")
+    latest_booking = None
     db_response = requests.get("http://localhost:3060/api/bookings?limit=1")
     
     if db_response.status_code == 200:

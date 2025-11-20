@@ -6,7 +6,7 @@ Tests the specific case: "Teo, 333333" should preserve "333333" not become "1333
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.action_executor import ActionExecutor
 from services.backend_client import BackendAPIClient
