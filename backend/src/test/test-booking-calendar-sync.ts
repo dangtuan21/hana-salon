@@ -47,7 +47,6 @@ async function testBookingCalendarSync(): Promise<void> {
       paymentStatus: 'pending' as const,
       notes: 'First-time customer, prefers quiet environment',
       customerNotes: 'Please call 30 minutes before appointment',
-      reminderSent: false,
       confirmationSent: false,
       calendarSyncStatus: 'pending' as const
     };

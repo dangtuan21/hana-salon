@@ -26,7 +26,6 @@ export interface IBooking extends Document {
   notes?: string; // General booking notes
   customerNotes?: string;
   cancellationReason?: string;
-  reminderSent: boolean;
   confirmationSent: boolean;
   calendarEventId?: string; // Google Calendar event ID
   calendarSyncStatus: 'pending' | 'synced' | 'failed' | 'disabled';
@@ -153,10 +152,6 @@ const BookingSchema = new Schema<IBooking>({
     type: String,
     trim: true,
     maxlength: [200, 'Cancellation reason cannot exceed 200 characters']
-  },
-  reminderSent: {
-    type: Boolean,
-    default: false
   },
   confirmationSent: {
     type: Boolean,

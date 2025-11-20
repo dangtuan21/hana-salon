@@ -112,7 +112,6 @@ class BookingState:
     notes: Optional[str] = None           # General booking notes
     customerNotes: Optional[str] = None
     cancellationReason: Optional[str] = None
-    reminderSent: bool = False
     confirmationSent: bool = False
     rating: Optional[BookingRating] = None
     
@@ -150,7 +149,6 @@ class BookingState:
             "notes": self.notes,
             "customerNotes": self.customerNotes,
             "cancellationReason": self.cancellationReason,
-            "reminderSent": self.reminderSent,
             "confirmationSent": self.confirmationSent,
             "rating": {
                 "score": self.rating.score,
@@ -206,7 +204,6 @@ class BookingState:
             notes=data.get("notes"),
             customerNotes=data.get("customerNotes"),
             cancellationReason=data.get("cancellationReason"),
-            reminderSent=data.get("reminderSent", False),
             confirmationSent=data.get("confirmationSent", False)
         )
         
@@ -305,7 +302,6 @@ class BookingState:
             "paymentStatus": self.paymentStatus,
             "notes": self.notes,
             "customerNotes": self.customerNotes,
-            "reminderSent": self.reminderSent,
             "confirmationSent": self.confirmationSent
         }
         

@@ -893,7 +893,6 @@ describe('Technicians Controller', () => {
         totalDuration: 60,
         totalPrice: 50,
         paymentStatus: 'pending',
-        reminderSent: false,
         confirmationSent: false,
         calendarSyncStatus: 'pending'
       });
@@ -978,7 +977,6 @@ describe('Technicians Controller', () => {
         totalDuration: 60,
         totalPrice: 50,
         paymentStatus: 'pending',
-        reminderSent: false,
         confirmationSent: false,
         calendarSyncStatus: 'pending'
       });
@@ -999,7 +997,6 @@ describe('Technicians Controller', () => {
         totalDuration: 90,
         totalPrice: 75,
         paymentStatus: 'pending',
-        reminderSent: false,
         confirmationSent: false,
         calendarSyncStatus: 'pending'
       });
@@ -1041,7 +1038,6 @@ describe('Technicians Controller', () => {
         totalDuration: 60,
         totalPrice: 50,
         paymentStatus: 'pending',
-        reminderSent: false,
         confirmationSent: false,
         calendarSyncStatus: 'pending'
       });
