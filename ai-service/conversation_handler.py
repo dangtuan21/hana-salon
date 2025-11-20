@@ -114,7 +114,7 @@ class ConversationHandler:
                     "customer_phone": "ALWAYS extract phone if mentioned in any format",
                     "services_requested": "single service name or empty string",
                     "date_requested": "EXTRACT EXACTLY as mentioned: Monday, Tuesday, tomorrow, next Friday, Dec 15, etc. DO NOT convert relative dates to absolute dates. If no date mentioned OR if customer is confirming existing pending confirmation, use empty string",
-                    "time_requested": "EXTRACT any time mentioned: 2pm, 10:30am, 3 PM, etc. If no time mentioned OR if customer is confirming existing pending confirmation, use empty string",
+                    "time_requested": "EXTRACT any time mentioned: 2pm, 10:30am, 3 PM, etc. SMART ALTERNATIVE MATCHING: If booking_state contains alternative_times and user mentions a number/time that matches an alternative (e.g., '10' matches '10:00' alternative), extract the full matched time. If no time mentioned OR if customer is confirming existing pending confirmation, use empty string",
                     "technician_preference": "extracted preference or current value"
                 }},
                 "actions_neededs": ["check_availability", "get_technicians", "create_booking"],
@@ -129,17 +129,39 @@ class ConversationHandler:
             llm_response = llm.invoke(messages)
             original_response_data = json.loads(llm_response.content)
             
-            # Update booking state with LLM extracted information FIRST
-            booking_updates = original_response_data.get("booking_state_updates", {})
-            print(f"📋 LLM extracted updates: {booking_updates}")
-            self.booking_manager.update_booking_state(session_state, booking_updates)
+            # Update booking state with extracted data
+            booking_state_dict = session_state["booking_state"]
+            updates = original_response_data.get("booking_state_updates", {})
             
-            # Check if user is selecting an alternative time
-            alternative_selected = self.booking_manager.process_alternative_selection(session_state, user_message)
-            if alternative_selected:
-                print(f"🎯 Alternative time selected, proceeding to create booking")
+            # Check if user selected an alternative time
+            selected_alternative = None
+            if updates.get("time_requested") and booking_state_dict.get("alternative_times"):
+                selected_time = updates["time_requested"]
+                for alt in booking_state_dict["alternative_times"]:
+                    if alt["time"] == selected_time:
+                        selected_alternative = alt
+                        print(f" Matched alternative selection: {selected_time} with {alt['technician']}")
+                        break
             
-            print(f"🗂️ Current booking state: {session_state['booking_state']}")
+            for key, value in updates.items():
+                if value and value.strip():  # Only update if value is not empty
+                    booking_state_dict[key] = value
+                    print(f" Updated {key}: {value}")
+            
+            # If alternative was selected, update technician and clear alternatives
+            if selected_alternative:
+                # Update technician assignment for the service
+                if booking_state_dict.get("services") and len(booking_state_dict["services"]) > 0:
+                    booking_state_dict["services"][0]["technicianId"] = selected_alternative["technician_id"]
+                    print(f" Assigned technician: {selected_alternative['technician']} ({selected_alternative['technician_id']})")
+                
+                # Clear alternatives since one was selected
+                booking_state_dict["alternative_times"] = []
+                print(" Cleared alternative times after selection")
+            
+            session_state["booking_state"] = booking_state_dict
+            
+            print(f"📋 Current booking state: {session_state['booking_state']}")
             
             # IMPLEMENT SEQUENTIAL FLOW - Check what data we have and what's missing
             booking_state = session_state["booking_state"]
@@ -160,10 +182,22 @@ class ConversationHandler:
             is_confirmation_response = self._is_confirmation_response(user_message, session_state)
             is_appointment_confirmation = self._is_appointment_confirmation(user_message, session_state)
             
-            if (is_confirmation_response or is_appointment_confirmation) and all_data_collected:
-                print(f"✅ Detected confirmation response: '{user_message}' - Processing booking")
-                # Automatically trigger confirm_datetime and check_availability actions
-                actions_taken = self.action_executor.execute_actions(session_state, ["confirm_datetime", "check_availability"])
+            # Check if user is confirming a ready-to-book appointment
+            is_ready_to_book = (all_data_collected and 
+                               booking_state.get("dateTimeConfirmationStatus") == "confirmed" and
+                               user_message.lower().strip() in ['ok', 'okay', 'yes', 'confirm', 'correct'])
+            
+            if (is_confirmation_response or is_appointment_confirmation or is_ready_to_book) and all_data_collected:
+                print(f" Detected confirmation response: '{user_message}' - Processing booking")
+                
+                # Mark date/time as confirmed when user confirms
+                booking_state_dict = session_state["booking_state"]
+                if booking_state_dict.get("dateTimeConfirmationStatus") == "pending":
+                    booking_state_dict["dateTimeConfirmationStatus"] = "confirmed"
+                    print("✅ Date/time confirmation status updated to CONFIRMED")
+                
+                # Ensure services are populated before checking availability
+                actions_taken = self.action_executor.execute_actions(session_state, ["get_services", "check_availability"])
                 
                 # Generate response based on availability check results
                 availability_result = None
@@ -172,13 +206,19 @@ class ConversationHandler:
                         availability_result = action
                         break
                 
+                print(f"🔍 DEBUG: availability_result = {availability_result}")
+                print(f"🔍 DEBUG: str(availability_result) = {str(availability_result)}")
+                print(f"🔍 DEBUG: type(availability_result) = {type(availability_result)}")
+                
                 if availability_result and "CHECKED_AVAILABILITY" in str(availability_result):
                     # Check if there was a conflict or if booking is available
                     if "Conflict detected" in str(availability_result):
                         # Extract alternative times from the result
                         alternatives_text = str(availability_result).split("Available alternatives on")[1] if "Available alternatives on" in str(availability_result) else "some alternative times"
                         response_text = f"I found a scheduling conflict with your requested time. However, I have some great alternatives available{alternatives_text}. Which time would work better for you?"
-                    elif availability_result == ActionResult.CHECKED_AVAILABILITY:
+                    elif (availability_result == ActionResult.CHECKED_AVAILABILITY or 
+                          str(availability_result) == "ActionResult.CHECKED_AVAILABILITY" or
+                          str(availability_result) == "availability_checked"):
                         # No conflict, booking is available - proceed with booking creation
                         booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
                         actions_taken.extend(booking_actions)
@@ -309,6 +349,7 @@ class ConversationHandler:
             # Execute any needed actions
             requested_actions = response_data.get("actions_neededs", [])
             print(f"🎯 LLM requested actions: {requested_actions}")
+            
             
             # Special handling for create_booking - ensure all prerequisites are met
             if "create_booking" in requested_actions:

@@ -10,6 +10,7 @@ from database.booking_state import BookingState, ServiceTechnicianPair, Confirma
 from database.enums import BookingAction, ActionResult
 from services.date_parser import parse_date, parse_time
 from services.backend_client import BackendAPIClient
+from services.booking_manager import BookingManager
 
 
 class ActionExecutor:
@@ -17,6 +18,7 @@ class ActionExecutor:
     
     def __init__(self, api_client: BackendAPIClient):
         self.api_client = api_client
+        self.booking_manager = BookingManager()
     
     def execute_actions(self, session_state: Dict, actions_needed: List[str]) -> List[str]:
         """Execute actions identified by the LLM"""
@@ -431,8 +433,17 @@ class ActionExecutor:
     def _get_services(self, session_state: Dict) -> str:
         """Get all available services"""
         services = self.api_client.get_all_services()
-        booking_state = session_state["booking_state"]
-        booking_state["available_services"] = services
+        booking_state_dict = session_state["booking_state"]
+        booking_state_dict["available_services"] = services
+        
+        # Convert to BookingState object and populate services if ready
+        booking_state = BookingState.from_dict(booking_state_dict)
+        self.booking_manager.populate_services_if_ready(booking_state, session_state)
+        
+        # Update session with populated services
+        session_state["booking_state"] = booking_state.to_dict()
+        print(f"📋 Services populated: {len(booking_state.services)} service(s) in booking state")
+        
         return ActionResult.SERVICES_RETRIEVED
     
     def _update_booking(self, session_state: Dict) -> str:
