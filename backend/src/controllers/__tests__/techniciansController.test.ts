@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import app from '../../app';
 import database from '../../config/database';
 import { Technician } from '../../models/Technician';
+import { Customer } from '../../models/Customer';
+import { Booking } from '../../models/Booking';
 
 describe('Technicians Controller', () => {
   beforeAll(async () => {
@@ -606,6 +608,7 @@ describe('Technicians Controller', () => {
           skillLevel: 'Senior',
           yearsOfExperience: 3,
           hourlyRate: 40,
+          rating: 4.5,
           isActive: true,
           hireDate: '2022-01-01'
         },
@@ -790,13 +793,271 @@ describe('Technicians Controller', () => {
       const response = await request(app)
         .post('/api/technicians/invalid-id/check-availability')
         .send({
-          date: '2024-12-01',
+          date: '2025-12-01',
           startTime: '10:00',
           duration: 60
         })
         .expect(500); // Will be internal server error due to invalid ObjectId format
 
       expect(response.body).toHaveProperty('success', false);
+    });
+  });
+
+  describe('POST /api/technicians/batch-check-availability', () => {
+    let technician1: any;
+    let technician2: any;
+    let customer: any;
+
+    beforeEach(async () => {
+      await Technician.deleteMany({});
+      await Customer.deleteMany({});
+      await Booking.deleteMany({});
+
+      // Create test technicians
+      technician1 = await Technician.create({
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john.doe@hanasalon.com',
+        phone: '+1234567890',
+        employeeId: 'EMP001',
+        specialties: ['Manicure', 'Pedicure'],
+        skillLevel: 'Senior',
+        yearsOfExperience: 5,
+        hourlyRate: 50,
+        isActive: true,
+        hireDate: '2022-01-01'
+      });
+
+      technician2 = await Technician.create({
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane.smith@hanasalon.com',
+        phone: '+1234567891',
+        employeeId: 'EMP002',
+        specialties: ['Manicure'],
+        skillLevel: 'Junior',
+        yearsOfExperience: 2,
+        hourlyRate: 35,
+        isActive: true,
+        hireDate: '2023-01-01'
+      });
+
+      // Create test customer
+      customer = await Customer.create({
+        firstName: 'Test',
+        lastName: 'Customer',
+        email: 'test@example.com',
+        phone: '+1987654321'
+      });
+    });
+
+    test('should check availability for multiple technicians successfully', async () => {
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [technician1._id.toString(), technician2._id.toString()],
+          date: '2025-12-01',
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data).toHaveProperty('results');
+      expect(Array.isArray(response.body.data.results)).toBe(true);
+      expect(response.body.data.results).toHaveLength(2);
+      
+      // Both technicians should be available (no conflicts)
+      response.body.data.results.forEach((result: any) => {
+        expect(result).toHaveProperty('technicianId');
+        expect(result).toHaveProperty('available', true);
+        expect([technician1._id.toString(), technician2._id.toString()]).toContain(result.technicianId);
+      });
+    });
+
+    test('should detect conflicts for busy technicians', async () => {
+      // Create a booking that conflicts with the requested time
+      await Booking.create({
+        customerId: customer._id,
+        services: [{
+          serviceId: new mongoose.Types.ObjectId(),
+          technicianId: technician1._id,
+          duration: 60,
+          price: 50,
+          status: 'scheduled'
+        }],
+        appointmentDate: new Date('2025-12-01'),
+        startTime: '09:30',
+        endTime: '10:30',
+        status: 'confirmed',
+        totalDuration: 60,
+        totalPrice: 50,
+        paymentStatus: 'pending',
+        reminderSent: false,
+        confirmationSent: false,
+        calendarSyncStatus: 'pending'
+      });
+
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [technician1._id.toString(), technician2._id.toString()],
+          date: '2025-12-01',
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data.results).toHaveLength(2);
+
+      // Find results for each technician
+      const tech1Result = response.body.data.results.find((r: any) => r.technicianId === technician1._id.toString());
+      const tech2Result = response.body.data.results.find((r: any) => r.technicianId === technician2._id.toString());
+
+      expect(tech1Result).toHaveProperty('available', false); // Has conflict
+      expect(tech2Result).toHaveProperty('available', true);  // No conflict
+    });
+
+    test('should return 400 for missing technicianIds', async () => {
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          date: '2025-12-01',
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body.message).toContain('Technician IDs array is required');
+    });
+
+    test('should return 400 for empty technicianIds array', async () => {
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [],
+          date: '2025-12-01',
+          startTime: '10:00',
+          duration: 60
+        })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body.message).toContain('Technician IDs array is required');
+    });
+
+    test('should return 400 for missing required fields', async () => {
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [technician1._id.toString()]
+        })
+        .expect(400);
+
+      expect(response.body).toHaveProperty('success', false);
+      expect(response.body.message).toContain('Date, start time, and duration are required');
+    });
+
+    test('should handle multiple conflicts correctly', async () => {
+      // Create bookings for both technicians
+      await Booking.create({
+        customerId: customer._id,
+        services: [{
+          serviceId: new mongoose.Types.ObjectId(),
+          technicianId: technician1._id,
+          duration: 60,
+          price: 50,
+          status: 'scheduled'
+        }],
+        appointmentDate: new Date('2025-12-01'),
+        startTime: '10:00',
+        endTime: '11:00',
+        status: 'confirmed',
+        totalDuration: 60,
+        totalPrice: 50,
+        paymentStatus: 'pending',
+        reminderSent: false,
+        confirmationSent: false,
+        calendarSyncStatus: 'pending'
+      });
+
+      await Booking.create({
+        customerId: customer._id,
+        services: [{
+          serviceId: new mongoose.Types.ObjectId(),
+          technicianId: technician2._id,
+          duration: 90,
+          price: 75,
+          status: 'scheduled'
+        }],
+        appointmentDate: new Date('2025-12-01'),
+        startTime: '09:30',
+        endTime: '11:00',
+        status: 'scheduled',
+        totalDuration: 90,
+        totalPrice: 75,
+        paymentStatus: 'pending',
+        reminderSent: false,
+        confirmationSent: false,
+        calendarSyncStatus: 'pending'
+      });
+
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [technician1._id.toString(), technician2._id.toString()],
+          date: '2025-12-01',
+          startTime: '10:30',
+          duration: 60
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data.results).toHaveLength(2);
+
+      // Both technicians should have conflicts
+      response.body.data.results.forEach((result: any) => {
+        expect(result).toHaveProperty('available', false);
+      });
+    });
+
+    test('should only check active bookings', async () => {
+      // Create a cancelled booking (should not cause conflict)
+      await Booking.create({
+        customerId: customer._id,
+        services: [{
+          serviceId: new mongoose.Types.ObjectId(),
+          technicianId: technician1._id,
+          duration: 60,
+          price: 50,
+          status: 'scheduled'
+        }],
+        appointmentDate: new Date('2025-12-01'),
+        startTime: '10:00',
+        endTime: '11:00',
+        status: 'cancelled', // Cancelled status should not cause conflict
+        totalDuration: 60,
+        totalPrice: 50,
+        paymentStatus: 'pending',
+        reminderSent: false,
+        confirmationSent: false,
+        calendarSyncStatus: 'pending'
+      });
+
+      const response = await request(app)
+        .post('/api/technicians/batch-check-availability')
+        .send({
+          technicianIds: [technician1._id.toString()],
+          date: '2025-12-01',
+          startTime: '10:30',
+          duration: 60
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body.data.results[0]).toHaveProperty('available', true); // Should be available since booking is cancelled
     });
   });
 });

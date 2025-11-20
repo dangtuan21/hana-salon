@@ -94,6 +94,30 @@ class BackendAPIClient:
             print(f"💥 Error checking technician availability: {e}")
             return {'available': False, 'error': str(e)}
     
+    def batch_check_technician_availability(self, technician_ids: List[str], date: str, start_time: str, duration: int) -> Dict:
+        """Check availability for multiple technicians at once"""
+        try:
+            url = f"{self.base_url}/api/technicians/batch-check-availability"
+            payload = {
+                'technicianIds': technician_ids,
+                'date': date,
+                'startTime': start_time,
+                'duration': duration
+            }
+            print(f"🌐 BATCH API CALL: POST {url}")
+            print(f"📤 Payload: {payload}")
+            response = self.session.post(url, json=payload)
+            print(f"📡 Response: {response.status_code} - {response.text[:200]}...")
+            if response.status_code == 200:
+                data = response.json().get('data', {})
+                print(f"✅ Batch availability check completed for {len(technician_ids)} technicians")
+                return data
+            print(f"❌ Batch availability check failed: {response.status_code}")
+            return {}
+        except Exception as e:
+            print(f"💥 Error in batch availability check: {e}")
+            return {}
+    
     def get_customer_by_phone(self, phone: str) -> Optional[Dict]:
         """Get customer by phone number"""
         try:

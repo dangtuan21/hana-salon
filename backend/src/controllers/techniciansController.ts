@@ -460,3 +460,86 @@ export const checkTechnicianAvailability = asyncHandler(async (req: Request, res
     ResponseUtil.internalError(res, 'Failed to check technician availability');
   }
 });
+
+// Batch check technician availability for multiple technicians
+export const batchCheckTechnicianAvailability = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { technicianIds, date, startTime, duration } = req.body;
+    
+    if (!technicianIds || !Array.isArray(technicianIds) || technicianIds.length === 0) {
+      ResponseUtil.badRequest(res, 'Technician IDs array is required');
+      return;
+    }
+    
+    if (!date || !startTime || !duration) {
+      ResponseUtil.badRequest(res, 'Date, start time, and duration are required');
+      return;
+    }
+    
+    // Import Booking model to check conflicts
+    const { Booking } = await import('@/models/Booking');
+    
+    // Parse the date and time
+    const appointmentDate = new Date(date);
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDateTime = new Date(appointmentDate);
+    startDateTime.setHours(hours, minutes, 0, 0);
+    
+    const endDateTime = new Date(startDateTime);
+    endDateTime.setMinutes(endDateTime.getMinutes() + duration);
+    
+    // Get all bookings for the date that involve any of the technicians
+    const conflicts = await Booking.find({
+      'services.technicianId': { $in: technicianIds },
+      appointmentDate: {
+        $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
+        $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
+      },
+      status: { $in: ['scheduled', 'confirmed', 'in_progress'] }
+    }).populate('services.serviceId', 'name duration_minutes');
+    
+    // Check availability for each technician
+    const results = [];
+    
+    for (const technicianId of technicianIds) {
+      let hasConflict = false;
+      
+      // Check if this technician has any conflicts
+      for (const booking of conflicts) {
+        // Check if this technician is involved in this booking
+        const technicianInvolved = booking.services.some(
+          (service: any) => service.technicianId.toString() === technicianId
+        );
+        
+        if (technicianInvolved) {
+          const bookingStart = new Date(`${booking.appointmentDate.toDateString()} ${booking.startTime}`);
+          const bookingEnd = new Date(`${booking.appointmentDate.toDateString()} ${booking.endTime}`);
+          
+          // Check if times overlap
+          if ((startDateTime < bookingEnd) && (endDateTime > bookingStart)) {
+            hasConflict = true;
+            break;
+          }
+        }
+      }
+      
+      results.push({
+        technicianId,
+        available: !hasConflict
+      });
+    }
+    
+    logger.info(`Batch checked availability for ${technicianIds.length} technicians on ${date} at ${startTime}`);
+    
+    ResponseUtil.success(res, {
+      date,
+      startTime,
+      duration,
+      results
+    }, `Batch availability check completed for ${technicianIds.length} technicians`);
+    
+  } catch (error) {
+    logger.error('Error in batch technician availability check:', error);
+    ResponseUtil.internalError(res, 'Failed to check batch technician availability');
+  }
+});

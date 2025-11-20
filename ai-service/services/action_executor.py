@@ -171,7 +171,7 @@ class ActionExecutor:
                 return f"{ActionResult.CHECKED_AVAILABILITY}: No availability on {parsed_date}. Please try a different date."
     
     def _find_best_technician(self, technicians: List[Dict], service_id: str, date: str, start_time: str, duration: int) -> Dict:
-        """Find the best available technician for a service at the specified time"""
+        """Find the best available technician using batch availability check"""
         
         # Sort technicians by preference: Senior > Junior, higher rating first
         sorted_technicians = sorted(technicians, key=lambda t: (
@@ -179,18 +179,42 @@ class ActionExecutor:
             t.get('rating', 0)  # Higher rating first
         ), reverse=True)
         
-        for technician in sorted_technicians:
-            tech_id = technician.get('_id')
-            print(f"🔍 Checking {technician.get('firstName')} {technician.get('lastName')} ({technician.get('skillLevel')}, Rating: {technician.get('rating')})")
-            
-            # Check if this technician is available at the requested time
-            availability = self.api_client.check_technician_availability(tech_id, date, start_time, duration)
-            
-            if availability.get('available'):
-                print(f"✅ {technician.get('firstName')} {technician.get('lastName')} is available")
-                return technician
-            else:
+        # Extract technician IDs in preference order
+        technician_ids = [t.get('_id') for t in sorted_technicians]
+        
+        print(f"🔍 Batch checking {len(technician_ids)} technicians for availability")
+        
+        # Single batch API call for all technicians
+        batch_result = self.api_client.batch_check_technician_availability(
+            technician_ids, date, start_time, duration
+        )
+        
+        if batch_result and batch_result.get('results'):
+            # Find first available technician in preference order
+            for technician in sorted_technicians:
+                tech_id = technician.get('_id')
+                
+                # Check if this technician is available in batch results
+                for result in batch_result['results']:
+                    if result['technicianId'] == tech_id and result['available']:
+                        print(f"✅ {technician.get('firstName')} {technician.get('lastName')} is available")
+                        return technician
+                
                 print(f"❌ {technician.get('firstName')} {technician.get('lastName')} is not available")
+        else:
+            print("❌ Batch availability check failed, falling back to individual checks")
+            # Fallback to original method if batch fails
+            for technician in sorted_technicians:
+                tech_id = technician.get('_id')
+                print(f"🔍 Checking {technician.get('firstName')} {technician.get('lastName')} ({technician.get('skillLevel')}, Rating: {technician.get('rating')})")
+                
+                availability = self.api_client.check_technician_availability(tech_id, date, start_time, duration)
+                
+                if availability.get('available'):
+                    print(f"✅ {technician.get('firstName')} {technician.get('lastName')} is available")
+                    return technician
+                else:
+                    print(f"❌ {technician.get('firstName')} {technician.get('lastName')} is not available")
         
         # No technician available
         return None
@@ -482,24 +506,31 @@ class ActionExecutor:
                     if end_hour > business_end or (end_hour == business_end and end_minute > 0):
                         continue
                     
-                    # Find available technician for this slot
-                    for technician in technicians:
-                        tech_id = technician.get('_id')
-                        tech_name = f"{technician.get('firstName')} {technician.get('lastName')}"
-                        
-                        # Check availability for this technician at this time
-                        is_available = self.api_client.check_technician_availability(
-                            tech_id, date, slot_time, total_duration
-                        )
-                        
-                        if is_available and is_available.get('available'):
-                            alternatives.append({
-                                'time': slot_time,
-                                'technician': tech_name,
-                                'technician_id': tech_id,
-                                'end_time': f"{end_hour:02d}:{end_minute:02d}"
-                            })
-                            break  # Found one technician for this slot, move to next slot
+                    # Batch check all technicians for this time slot
+                    technician_ids = [t.get('_id') for t in technicians]
+                    batch_result = self.api_client.batch_check_technician_availability(
+                        technician_ids, date, slot_time, total_duration
+                    )
+                    
+                    # Find first available technician for this slot
+                    if batch_result and batch_result.get('results'):
+                        for technician in technicians:
+                            tech_id = technician.get('_id')
+                            tech_name = f"{technician.get('firstName')} {technician.get('lastName')}"
+                            
+                            # Check if this technician is available in batch results
+                            for result in batch_result['results']:
+                                if result['technicianId'] == tech_id and result['available']:
+                                    alternatives.append({
+                                        'time': slot_time,
+                                        'technician': tech_name,
+                                        'technician_id': tech_id,
+                                        'end_time': f"{end_hour:02d}:{end_minute:02d}"
+                                    })
+                                    break  # Found one technician for this slot, move to next slot
+                            else:
+                                continue  # Continue to next technician
+                            break  # Break out of technician loop if we found one
                     
                     # Limit to reasonable number of alternatives
                     if len(alternatives) >= 5:
