@@ -303,7 +303,7 @@ class ConversationHandler:
                 response_data = original_response_data
             
             # Check if we created a pending confirmation that needs LLM attention
-            if session_state.get("pending_confirmation") and not hasattr(self, '_confirmation_handled'):
+            if session_state.get("datetime_parsing") and not hasattr(self, '_confirmation_handled'):
                 print(f"🔄 Pending confirmation detected, regenerating LLM response...")
                 
                 # Second pass: Regenerate LLM response with pending confirmation visible
@@ -452,7 +452,7 @@ class ConversationHandler:
         {json.dumps(session_state["booking_state"], indent=2)}
         
         PENDING CONFIRMATION:
-        {json.dumps(session_state.get("pending_confirmation", {}), indent=2) if session_state.get("pending_confirmation") else "None"}
+        {json.dumps(session_state.get("datetime_parsing", {}), indent=2) if session_state.get("datetime_parsing") else "None"}
         
         CONFIRMATION INSTRUCTIONS:
         - If PENDING CONFIRMATION exists, use the exact "formatted_date" and "formatted_time" in your response
@@ -535,7 +535,7 @@ class ConversationHandler:
     def _is_confirmation_response(self, user_message: str, session_state: Dict) -> bool:
         """Check if user message is confirming a pending confirmation"""
         # Only check if there's a pending confirmation
-        if not session_state.get("pending_confirmation"):
+        if not session_state.get("datetime_parsing"):
             return False
         
         # Common confirmation phrases

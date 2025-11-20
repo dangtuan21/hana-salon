@@ -49,7 +49,7 @@ class BookingManager:
         # BUT ONLY if there's no existing pending confirmation AND customer info is complete AND service is selected
         customer_info_complete = booking_state.customer_name and booking_state.customer_phone
         service_selected = booking_state.services_requested and booking_state.services_requested.strip()
-        if (date_updated or time_updated) and not session_state.get("pending_confirmation") and customer_info_complete and service_selected:
+        if (date_updated or time_updated) and not session_state.get("datetime_parsing") and customer_info_complete and service_selected:
             date = booking_state.date_requested
             time = booking_state.time_requested
             
@@ -70,7 +70,7 @@ class BookingManager:
                         formatted_date = date_obj.strftime("%A, %B %d")
                         formatted_time = time_obj.strftime("%-I%p").lower()
                         
-                        session_state["pending_confirmation"] = {
+                        session_state["datetime_parsing"] = {
                             "type": "datetime",
                             "original_date": date,
                             "original_time": time,

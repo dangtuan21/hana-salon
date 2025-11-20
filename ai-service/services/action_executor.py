@@ -208,7 +208,7 @@ class ActionExecutor:
     
     def _confirm_datetime(self, session_state: Dict) -> str:
         """Handle date/time confirmation"""
-        pending = session_state.get("pending_confirmation")
+        pending = session_state.get("datetime_parsing")
         if pending:
             # Update booking state with confirmed date/time
             booking_state_dict = session_state["booking_state"]
@@ -220,13 +220,13 @@ class ActionExecutor:
             session_state["booking_state"] = booking_state.to_dict()
             
             # Clear pending confirmation
-            session_state.pop("pending_confirmation", None)
+            session_state.pop("datetime_parsing", None)
             
             print(f"✅ Date/time confirmed: {pending['formatted_date']} at {pending['formatted_time']}")
             return "datetime_confirmed"
         else:
             print(f"❌ No pending confirmation found")
-            return "no_pending_confirmation"
+            return "no_datetime_parsing"
     
     def _get_technicians(self, session_state: Dict) -> str:
         """Get available technicians for the requested service"""
