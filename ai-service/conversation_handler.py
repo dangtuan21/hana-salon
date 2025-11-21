@@ -16,8 +16,9 @@ from dotenv import load_dotenv
 # Import organized services and database classes
 from services import BackendAPIClient, parse_date, parse_time
 from services.booking_manager import BookingManager
-from services.action_executor import ActionExecutor, ActionResult
+from services.action_executor import ActionExecutor
 from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair
+from database.enums import ActionResult
 
 # Load environment variables
 load_dotenv()
@@ -36,7 +37,7 @@ class ConversationHandler:
     """Pure LLM-powered conversation handler for salon bookings"""
     
     def __init__(self, backend_url: str = "http://localhost:3060"):
-        self.session_manager = SessionManager()
+        self.session_manager = SessionManager(backend_url)
         self.api_client = BackendAPIClient(backend_url)
         self.booking_manager = BookingManager()
         self.action_executor = ActionExecutor(self.api_client)
@@ -367,6 +368,9 @@ class ConversationHandler:
             # Update conversation completion status
             session_state["conversation_complete"] = response_data.get("conversation_complete", False)
             
+            # Session is automatically persisted by SessionManager
+            # No need for separate conversation storage - it's handled by database-backed sessions
+            
             return {
                 "session_id": session_state["session_id"],
                 "response": response_data["response"],
@@ -592,7 +596,12 @@ class ConversationHandler:
         return self.session_manager.get_session(session_id)
     
     def clear_session(self, session_id: str) -> bool:
-        """Clear a session"""
+        """Clear a session and store conversation history"""
+        # Get session data before deleting
+        session_data = self.session_manager.get_session(session_id)
+        
+        # Session is automatically persisted in database by SessionManager
+        # No need to store separately - just delete from cache
         return self.session_manager.delete_session(session_id)
     
     def get_session_stats(self) -> Dict[str, Any]:

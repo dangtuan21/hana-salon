@@ -289,6 +289,7 @@ class ActionExecutor:
                 # Step 5: Update booking state with success
                 booking_state.status = BookingStatus.CONFIRMED  # Use proper enum
                 booking_state.customerId = customer.get("_id")
+                booking_state.booking_id = booking.get("_id")  # Store booking ID
                 session_state["conversation_complete"] = True
                 session_state["booking_state"] = booking_state.to_dict()
                 

@@ -15,11 +15,11 @@ import {
 
 const router = Router();
 
-// Technician CRUD routes
+// Technician CRUD routes - specific routes MUST come before parameterized routes
 router.get('/', getAllTechnicians);                           // GET /api/technicians - Read all
 router.get('/available', getAvailableTechnicians);            // GET /api/technicians/available - Get active technicians (for AI)
-router.post('/', createTechnician);                           // POST /api/technicians - Create
 router.get('/service/:serviceId', getTechniciansForService);  // GET /api/technicians/service/:serviceId - Get for service (for AI)
+router.post('/', createTechnician);                           // POST /api/technicians - Create
 router.post('/batch-check-availability', batchCheckTechnicianAvailability); // POST /api/technicians/batch-check-availability - Batch check availability (for AI)
 router.post('/:id/check-availability', checkTechnicianAvailability); // POST /api/technicians/:id/check-availability - Check availability (for AI)
 router.get('/:id/availability', getTechnicianAvailability);   // GET /api/technicians/:id/availability - Get availability

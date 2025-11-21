@@ -975,115 +975,89 @@ paths:
         500:
           $ref: '#/components/responses/InternalServerError'
 
-  /api/bookingConversations:
+  /api/sessions:
     post:
-      tags: [Booking Conversations]
-      summary: Store new conversation
-      description: Create a new booking conversation record
+      tags: [Sessions]
+      summary: Create new session
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BookingConversation'
+              type: object
+              required:
+                - session_id
+              properties:
+                session_id:
+                  type: string
+                messages:
+                  type: array
+                  default: []
+                booking_state:
+                  type: object
+                  default: {}
       responses:
         201:
-          description: Conversation stored successfully
+          description: Session created successfully
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/BookingConversation'
-        409:
-          description: Conversation with sessionId already exists
-        422:
+                $ref: '#/components/schemas/ApiResponse'
+        400:
           $ref: '#/components/responses/BadRequest'
         500:
           $ref: '#/components/responses/InternalServerError'
-
-  /api/bookingConversations/{sessionId}:
     get:
-      tags: [Booking Conversations]
-      summary: Retrieve conversation by session ID
+      tags: [Sessions]
+      summary: Get all sessions
+      responses:
+        200:
+          description: Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/sessions/{sessionId}:
+    get:
+      tags: [Sessions]
+      summary: Get session by ID
       parameters:
-        - in: path
-          name: sessionId
+        - name: sessionId
+          in: path
           required: true
           schema:
             type: string
       responses:
         200:
-          description: Conversation retrieved successfully
+          description: Session retrieved successfully
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/BookingConversation'
+                $ref: '#/components/schemas/ApiResponse'
         404:
           $ref: '#/components/responses/NotFound'
         500:
           $ref: '#/components/responses/InternalServerError'
-
-  /api/bookingConversations/customer/{customerId}:
-    get:
-      tags: [Booking Conversations]
-      summary: Get customer conversation history
+    put:
+      tags: [Sessions]
+      summary: Update session
       parameters:
-        - in: path
-          name: customerId
+        - name: sessionId
+          in: path
           required: true
           schema:
             type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-        - in: query
-          name: outcome
-          schema:
-            type: string
-            enum: [booking_created, booking_failed, information_only, abandoned]
       responses:
         200:
-          description: Customer conversations retrieved successfully
+          description: Session updated successfully
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          conversations:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/BookingConversation'
-                          pagination:
-                            type: object
-                            properties:
-                              page:
-                                type: integer
-                              limit:
-                                type: integer
-                              total:
-                                type: integer
-                              pages:
-                                type: integer
+                $ref: '#/components/schemas/ApiResponse'
+        404:
+          $ref: '#/components/responses/NotFound'
         500:
           $ref: '#/components/responses/InternalServerError'

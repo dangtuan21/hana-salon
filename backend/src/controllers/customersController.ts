@@ -273,8 +273,13 @@ export const getCustomerByPhone = asyncHandler(async (req: Request, res: Respons
     // Clean phone number (remove spaces, dashes, etc.)
     const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
     
+    // Try to find customer by exact match first, then by cleaned phone patterns
     const customer = await Customer.findOne({
-      phone: { $regex: new RegExp(cleanPhone, 'i') }
+      $or: [
+        { phone: phone }, // Exact match
+        { phone: cleanPhone }, // Cleaned input vs stored
+        { phone: { $regex: new RegExp(cleanPhone.replace(/[+]/g, '\\+'), 'i') } } // Regex with escaped special chars
+      ]
     }).select('_id firstName lastName email phone isActive preferences');
     
     if (!customer) {

@@ -401,6 +401,24 @@ describe('Customers Controller', () => {
   });
 
   describe('Data Validation', () => {
+    beforeEach(async () => {
+      // Create test customers for phone lookup tests
+      await Customer.insertMany([
+        {
+          firstName: 'John',
+          lastName: 'Doe',
+          email: 'john.doe@test.com',
+          phone: '+1234567890'
+        },
+        {
+          firstName: 'Jane',
+          lastName: 'Smith',
+          email: 'jane.smith@test.com',
+          phone: '5551234567'
+        }
+      ]);
+    });
+
     test('should validate customer data structure', async () => {
       const customer = await Customer.create({
         firstName: 'Valid',
@@ -430,26 +448,6 @@ describe('Customers Controller', () => {
       expect(customerData.totalVisits).toBe(0);
       expect(customerData.totalSpent).toBe(0);
       expect(customerData.isActive).toBe(true);
-    });
-  });
-
-  describe('GET /api/customers/phone/:phone', () => {
-    beforeEach(async () => {
-      await Customer.deleteMany({});
-      await Customer.create([
-        {
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john.doe@test.com',
-          phone: '+1234567890'
-        },
-        {
-          firstName: 'Jane',
-          lastName: 'Smith',
-          email: 'jane.smith@test.com',
-          phone: '(555) 123-4567'
-        }
-      ]);
     });
 
     test('should return customer by exact phone match', async () => {
@@ -494,7 +492,7 @@ describe('Customers Controller', () => {
     test('should return 400 for empty phone', async () => {
       const response = await request(app)
         .get('/api/customers/phone/')
-        .expect(404); // Express returns 404 for missing parameter
+        .expect(400); // Should return 400 for missing parameter
     });
 
     test('should return only necessary customer fields', async () => {

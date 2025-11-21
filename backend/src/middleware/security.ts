@@ -7,7 +7,7 @@ import cors from 'cors';
 export const createRateLimiter = () => {
   return rateLimit({
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute for development
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '1000'), // 1000 requests per minute for development
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '10000'), // 10000 requests per minute for development
     message: {
       success: false,
       error: 'RATE_LIMIT_EXCEEDED',

@@ -56,9 +56,9 @@ const swaggerDefinition: SwaggerDefinition = {
       description: 'Booking management endpoints'
     },
     {
-      name: 'Booking Conversations',
-      description: 'Conversation history storage and retrieval endpoints'
-    }
+      name: 'Sessions',
+      description: 'LLM conversation session management endpoints'
+    },
   ]
 };
 

@@ -941,61 +941,106 @@ components:
           format: date-time
           description: Message timestamp
 
-    BookingConversation:
+    Session:
       type: object
       required:
-        - sessionId
+        - session_id
+        - created_at
+        - last_activity
         - messages
-        - startTime
-        - outcome
-        - totalMessages
-        - conversationDuration
+        - booking_state
+        - conversation_complete
       properties:
         _id:
           type: string
           description: MongoDB ObjectId
-        sessionId:
+        session_id:
           type: string
-          description: Unique session identifier
-        customerId:
+          description: Unique session identifier (UUID)
+        created_at:
           type: string
-          description: Customer ID if identified
-        bookingId:
+          format: date-time
+          description: Session creation timestamp
+        last_activity:
           type: string
-          description: Booking ID if created
+          format: date-time
+          description: Last activity timestamp
         messages:
           type: array
           items:
             $ref: '#/components/schemas/ConversationMessage'
           description: Conversation messages
-        startTime:
-          type: string
-          format: date-time
-          description: Conversation start time
-        endTime:
-          type: string
-          format: date-time
-          description: Conversation end time
-        outcome:
-          type: string
-          enum: [booking_created, booking_failed, information_only, abandoned]
-          description: Conversation outcome
-        totalMessages:
-          type: integer
-          minimum: 0
-          description: Total number of messages
-        conversationDuration:
-          type: integer
-          minimum: 0
-          description: Conversation duration in seconds
-        created_at:
-          type: string
-          format: date-time
-          description: Creation timestamp
-        updated_at:
-          type: string
-          format: date-time
-          description: Last update timestamp
+        booking_state:
+          type: object
+          description: Current booking state
+          properties:
+            customer_name:
+              type: string
+            customer_phone:
+              type: string
+            services_requested:
+              type: string
+            date_requested:
+              type: string
+            time_requested:
+              type: string
+            technician_preference:
+              type: string
+            customerId:
+              type: string
+            services:
+              type: array
+              items:
+                type: object
+            appointmentDate:
+              type: string
+            startTime:
+              type: string
+            endTime:
+              type: string
+            status:
+              type: string
+              default: initial
+            totalDuration:
+              type: integer
+              default: 0
+            totalPrice:
+              type: number
+              default: 0.0
+            paymentStatus:
+              type: string
+              default: pending
+            paymentMethod:
+              type: string
+            notes:
+              type: string
+            customerNotes:
+              type: string
+            cancellationReason:
+              type: string
+            confirmationSent:
+              type: boolean
+              default: false
+            rating:
+              type: number
+            available_technicians:
+              type: array
+              items:
+                type: object
+            available_services:
+              type: array
+              items:
+                type: object
+            alternative_times:
+              type: array
+              items:
+                type: object
+            booking_id:
+              type: string
+        conversation_complete:
+          type: boolean
+          default: false
+          description: Whether the conversation is complete
 
   responses:
     BadRequest:

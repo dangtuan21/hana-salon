@@ -257,6 +257,56 @@ async def clear_conversation(session_id: str):
         print(f"❌ Error clearing conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to clear conversation: {str(e)}")
 
+@app.post("/conversation/{session_id}/store")
+async def store_conversation(session_id: str):
+    """Manually store a conversation to backend"""
+    try:
+        success = conversation_handler.store_conversation(session_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found or storage failed")
+        
+        return {"message": f"Conversation {session_id} stored successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error storing conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to store conversation: {str(e)}")
+
+@app.get("/conversation/{session_id}/history")
+async def get_conversation_history(session_id: str):
+    """Get stored conversation history"""
+    try:
+        history = conversation_handler.get_conversation_history(session_id)
+        
+        if not history:
+            raise HTTPException(status_code=404, detail=f"Conversation history for {session_id} not found")
+        
+        return {"conversation": history}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting conversation history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get conversation history: {str(e)}")
+
+@app.get("/customer/{customer_id}/conversations")
+async def get_customer_conversations(customer_id: str, limit: int = 10):
+    """Get conversation history for a customer"""
+    try:
+        conversations = conversation_handler.get_customer_conversation_history(customer_id, limit)
+        
+        return {
+            "customer_id": customer_id,
+            "conversations": conversations,
+            "total": len(conversations)
+        }
+        
+    except Exception as e:
+        print(f"❌ Error getting customer conversations: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get customer conversations: {str(e)}")
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8060))  # AI service runs on 8060, backend on 3060
