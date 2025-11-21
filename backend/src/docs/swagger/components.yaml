@@ -948,7 +948,6 @@ components:
         - created_at
         - last_activity
         - messages
-        - booking_state
         - conversation_complete
       properties:
         _id:
@@ -970,73 +969,6 @@ components:
           items:
             $ref: '#/components/schemas/ConversationMessage'
           description: Conversation messages
-        booking_state:
-          type: object
-          description: Current booking state
-          properties:
-            customer_name:
-              type: string
-            customer_phone:
-              type: string
-            services_requested:
-              type: string
-            date_requested:
-              type: string
-            time_requested:
-              type: string
-            technician_preference:
-              type: string
-            customerId:
-              type: string
-            services:
-              type: array
-              items:
-                type: object
-            appointmentDate:
-              type: string
-            startTime:
-              type: string
-            endTime:
-              type: string
-            status:
-              type: string
-              default: initial
-            totalDuration:
-              type: integer
-              default: 0
-            totalPrice:
-              type: number
-              default: 0.0
-            paymentStatus:
-              type: string
-              default: pending
-            paymentMethod:
-              type: string
-            notes:
-              type: string
-            customerNotes:
-              type: string
-            cancellationReason:
-              type: string
-            confirmationSent:
-              type: boolean
-              default: false
-            rating:
-              type: number
-            available_technicians:
-              type: array
-              items:
-                type: object
-            available_services:
-              type: array
-              items:
-                type: object
-            alternative_times:
-              type: array
-              items:
-                type: object
-            booking_id:
-              type: string
         conversation_complete:
           type: boolean
           default: false

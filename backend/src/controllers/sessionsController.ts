@@ -29,7 +29,6 @@ export const createSession = asyncHandler(async (req: Request, res: Response): P
     created_at: sessionData.created_at ? new Date(sessionData.created_at) : new Date(),
     last_activity: sessionData.last_activity ? new Date(sessionData.last_activity) : new Date(),
     messages: sessionData.messages || [],
-    booking_state: sessionData.booking_state || {},
     conversation_complete: sessionData.conversation_complete || false
   });
 
@@ -78,9 +77,6 @@ export const updateSession = asyncHandler(async (req: Request, res: Response): P
   // Update fields
   if (updateData.messages !== undefined) {
     session.messages = updateData.messages;
-  }
-  if (updateData.booking_state !== undefined) {
-    session.booking_state = updateData.booking_state;
   }
   if (updateData.conversation_complete !== undefined) {
     session.conversation_complete = updateData.conversation_complete;

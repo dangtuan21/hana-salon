@@ -22,11 +22,6 @@ describe('Sessions Controller', () => {
       const sessionData = {
         session_id: 'test-session-123',
         messages: [],
-        booking_state: {
-          customer_name: '',
-          customer_phone: '',
-          status: 'initial'
-        },
         conversation_complete: false
       };
 
@@ -49,7 +44,6 @@ describe('Sessions Controller', () => {
     test('should return 400 if session_id is missing', async () => {
       const sessionData = {
         messages: [],
-        booking_state: {},
         conversation_complete: false
       };
 
@@ -67,7 +61,6 @@ describe('Sessions Controller', () => {
       const existingSession = new Session({
         session_id: 'existing-session',
         messages: [],
-        booking_state: {},
         conversation_complete: false
       });
       await existingSession.save();
@@ -75,7 +68,6 @@ describe('Sessions Controller', () => {
       const sessionData = {
         session_id: 'existing-session',
         messages: [],
-        booking_state: {},
         conversation_complete: false
       };
 
@@ -101,10 +93,6 @@ describe('Sessions Controller', () => {
             timestamp: new Date().toISOString()
           }
         ],
-        booking_state: {
-          customer_name: 'John Doe',
-          customer_phone: '555-1234'
-        },
         conversation_complete: false
       });
       await testSession.save();
@@ -117,7 +105,6 @@ describe('Sessions Controller', () => {
       expect(response.body.data.session_id).toBe('test-get-session');
       expect(response.body.data.messages).toHaveLength(1);
       expect(response.body.data.messages[0].content).toBe('Hello');
-      expect(response.body.data.booking_state.customer_name).toBe('John Doe');
     });
 
     test('should return 404 if session not found', async () => {
@@ -135,7 +122,6 @@ describe('Sessions Controller', () => {
       const testSession = new Session({
         session_id: 'test-activity-update',
         messages: [],
-        booking_state: {},
         conversation_complete: false,
         last_activity: oldTimestamp
       });
@@ -157,7 +143,6 @@ describe('Sessions Controller', () => {
       const testSession = new Session({
         session_id: 'test-update-session',
         messages: [],
-        booking_state: { customer_name: '' },
         conversation_complete: false
       });
       await testSession.save();
@@ -170,10 +155,6 @@ describe('Sessions Controller', () => {
             timestamp: new Date().toISOString()
           }
         ],
-        booking_state: {
-          customer_name: 'Jane Doe',
-          customer_phone: '555-5678'
-        },
         conversation_complete: true
       };
 
@@ -185,19 +166,16 @@ describe('Sessions Controller', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data.messages).toHaveLength(1);
       expect(response.body.data.messages[0].content).toBe('Updated message');
-      expect(response.body.data.booking_state.customer_name).toBe('Jane Doe');
       expect(response.body.data.conversation_complete).toBe(true);
 
       // Verify session was updated in database
       const updatedSession = await Session.findOne({ session_id: 'test-update-session' });
       expect(updatedSession?.conversation_complete).toBe(true);
-      expect(updatedSession?.booking_state.customer_name).toBe('Jane Doe');
     });
 
     test('should return 404 if session not found for update', async () => {
       const updateData = {
         messages: [],
-        booking_state: {},
         conversation_complete: true
       };
 
@@ -217,7 +195,6 @@ describe('Sessions Controller', () => {
       const testSession = new Session({
         session_id: 'test-delete-session',
         messages: [],
-        booking_state: {},
         conversation_complete: false
       });
       await testSession.save();
@@ -252,7 +229,6 @@ describe('Sessions Controller', () => {
         sessions.push({
           session_id: `test-session-${i}`,
           messages: [],
-          booking_state: {},
           conversation_complete: i % 2 === 0 // Every other session is complete
         });
       }
@@ -275,7 +251,6 @@ describe('Sessions Controller', () => {
       const sessions = Array.from({ length: 5 }, (_, i) => ({
         session_id: `default-session-${i}`,
         messages: [],
-        booking_state: {},
         conversation_complete: false
       }));
       await Session.insertMany(sessions);
@@ -298,28 +273,24 @@ describe('Sessions Controller', () => {
         {
           session_id: 'active-1',
           messages: [],
-          booking_state: {},
           conversation_complete: false,
           created_at: new Date()
         },
         {
           session_id: 'active-2',
           messages: [],
-          booking_state: {},
           conversation_complete: false,
           created_at: new Date()
         },
         {
           session_id: 'completed-1',
           messages: [],
-          booking_state: {},
           conversation_complete: true,
           created_at: new Date()
         },
         {
           session_id: 'old-session',
           messages: [],
-          booking_state: {},
           conversation_complete: true,
           created_at: new Date(Date.now() - 25 * 60 * 60 * 1000) // 25 hours ago
         }
