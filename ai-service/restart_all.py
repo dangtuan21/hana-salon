@@ -155,41 +155,17 @@ def main():
         # Step 2: Check ports are free
         check_ports()
         
-        # Step 3: Start AI service
-        if not start_ai_service():
-            print("❌ Failed to start AI service")
-            sys.exit(1)
+        # Step 3: Start AI service directly in foreground with logs
+        print("🚀 Starting AI service with visible logs...")
+        print("💡 Press Ctrl+C to stop the system")
+        print("=" * 50)
         
-        # Step 4: Wait a bit more for full startup
-        print("⏳ Waiting for services to fully initialize...")
-        time.sleep(8)
-        
-        # Step 5: Verify services
-        if verify_services():
-            print("\n🎉 ALL SERVICES RESTARTED SUCCESSFULLY!")
-            print("=" * 50)
-            print("📋 API Documentation: http://localhost:8060/docs")
-            print("💬 Chat Interface: http://localhost:7860")
-            print("🔧 API Health Check: http://localhost:8060/health")
-            print("=" * 50)
-            print("\n🔄 STARTING WITH VISIBLE LOGS...")
-            print("💡 Press Ctrl+C to stop the system")
-            print("=" * 50)
-            
-            # Kill the background service and start in foreground with visible logs
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        try:
+            subprocess.run([sys.executable, "start_booking_system.py"], cwd=script_dir)
+        except KeyboardInterrupt:
+            print("\n🛑 System stopped by user")
             kill_processes()
-            time.sleep(2)
-            
-            # Start booking system in foreground to see logs
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            try:
-                subprocess.run([sys.executable, "start_booking_system.py"], cwd=script_dir)
-            except KeyboardInterrupt:
-                print("\n🛑 System stopped by user")
-                kill_processes()
-        else:
-            print("\n❌ SERVICE VERIFICATION FAILED")
-            sys.exit(1)
             
     except KeyboardInterrupt:
         print("\n⚠️ Restart interrupted by user")

@@ -49,7 +49,7 @@ def test_backend_alignment():
         technicianId="tech456", 
         duration=45,
         price=35.0,
-        status="scheduled",
+        status="initial",
         notes="Use gentle polish"
     )
     booking_state.services.append(service_pair)

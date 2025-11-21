@@ -141,7 +141,7 @@ class TestBatchAvailabilityIntegration(unittest.TestCase):
             'technicianId': '',
             'duration': 60,
             'price': service['price'],
-            'status': 'scheduled'
+            'status': 'initial'
         }]
         session_state['booking_state']['totalDuration'] = 60
         session_state['booking_state']['totalPrice'] = service['price']

@@ -62,7 +62,7 @@ class ServiceTechnicianPair:
     technicianId: str
     duration: int  # Duration for this specific service
     price: float   # Price for this specific service
-    status: str = "scheduled"
+    status: str = "initial"
     notes: Optional[str] = None  # Service-specific notes
 
 
