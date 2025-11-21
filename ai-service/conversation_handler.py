@@ -240,26 +240,24 @@ class ConversationHandler:
                     "next_suggestions": []
                 }
             
-            # SEQUENTIAL FLOW: Ask for missing information in order
+            # Use LLM response instead of hardcoded templates
             if not name_collected or not phone_collected:
-                print("🔄 STEP 1: Missing customer info - asking for name and phone")
+                print("🔄 STEP 1: Missing customer info - using LLM response")
                 response_data = {
-                    "response": "Hi! Could I get your name and phone number?",
-                    "actions_neededs": []  # Services already preloaded at session start
+                    "response": original_response_data.get("response", "Hi! Could I get your name and phone number?"),
+                    "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
             elif not service_collected:
-                print("🔄 STEP 2: Missing service - asking for service selection")
-                customer_name = booking_state.get("customer_name", "")
+                print("🔄 STEP 2: Missing service - using LLM response")
                 response_data = {
-                    "response": f"Thank you, {customer_name}! What service would you like to book today?",
-                    "actions_neededs": []  # Services already preloaded at session start
+                    "response": original_response_data.get("response", "What service would you like to book today?"),
+                    "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
             elif not date_collected or not time_collected:
-                print("🔄 STEP 3: Missing date/time - asking for appointment time")
-                service_name = booking_state.get("services_requested", "service")
+                print("🔄 STEP 3: Missing date/time - using LLM response")
                 response_data = {
-                    "response": f"Great choice with the {service_name}! When would you like your appointment?",
-                    "actions_neededs": []
+                    "response": original_response_data.get("response", "When would you like your appointment?"),
+                    "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
             elif all_data_collected:
                 # Check if appointment data is ready for booking
@@ -267,32 +265,16 @@ class ConversationHandler:
                                       booking_state.get("startTime") is not None)
                 
                 if is_ready_for_booking:
-                    print("🔄 STEP 5: Appointment already confirmed - creating booking")
+                    print("🔄 STEP 5: Appointment already confirmed - using LLM response")
                     response_data = {
-                        "response": "Perfect! Let me finalize your appointment details.",
-                        "actions_neededs": ["create_booking"]
+                        "response": original_response_data.get("response", "Perfect! Let me finalize your appointment details."),
+                        "actions_neededs": original_response_data.get("actions_neededs", ["create_booking"])
                     }
                 else:
-                    print("🔄 STEP 4: All data collected - asking for confirmation")
-                    # Generate confirmation message
-                    service_name = booking_state.get("services_requested", "service")
-                    date_str = booking_state.get("date_requested", "")
-                    time_str = booking_state.get("time_requested", "")
-                    
-                    # Try to format the date nicely
-                    try:
-                        from services.date_time_parser import parse_date, format_date_for_display
-                        parsed_date = parse_date(date_str)
-                        if parsed_date:
-                            formatted_date = format_date_for_display(parsed_date)
-                        else:
-                            formatted_date = date_str
-                    except:
-                        formatted_date = date_str
-                    
+                    print("🔄 STEP 4: All data collected - using LLM response for confirmation")
                     response_data = {
-                        "response": f"Please confirm your {service_name} appointment on {formatted_date} at {time_str}.",
-                        "actions_neededs": []
+                        "response": original_response_data.get("response", "Let me confirm your appointment details."),
+                        "actions_neededs": original_response_data.get("actions_neededs", [])
                     }
             else:
                 # Fallback - let LLM handle
@@ -481,13 +463,15 @@ class ConversationHandler:
         8. Be friendly, professional, and helpful
         
         IMPORTANT GUIDELINES:
-        - Always be natural and conversational
+        - Always be natural, warm, and conversational - like a friendly salon receptionist
+        - NEVER use robotic or template language - be genuine and human-like
+        - Respond naturally to what the customer actually said, don't ignore their greeting or tone
         - IMMEDIATELY capture customer name and phone when mentioned (even in greetings!)
-        - Ask for one piece of missing information at a time
+        - Ask for missing information in a friendly, conversational way
         - NEVER proceed with date/time confirmation if customer name, phone, or service is missing
-        - Ask "Could I get your name and phone number?" if either is missing
-        - If customer info is complete but service is missing, ask "What service would you like to book today?"
-        - If customer info and service are complete but date/time is missing, ask "When would you like your appointment?"
+        - If missing customer info, ask naturally: "I'd love to help you book an appointment! What's your name?" or "Could I get your name and phone number so I can set this up for you?"
+        - If customer info is complete but service is missing, ask warmly: "What service are you interested in today?" or "What can we do for you today?"
+        - If customer info and service are complete but date/time is missing, ask conversationally: "When would work best for you?" or "What day and time would you prefer?"
         - NEVER create pending confirmations without service selection
         - NEVER use placeholder text like "[insert formatted_date]" - always use real data or ask for missing info
         - Only proceed with service/date/time confirmation AFTER customer info is collected
