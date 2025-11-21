@@ -219,11 +219,19 @@ class ConversationHandler:
                         # No conflict, booking is available - proceed with booking creation
                         booking_actions = self.action_executor.execute_actions(session_state, ["create_booking"])
                         actions_taken.extend(booking_actions)
-                        response_text = "Your appointment is being confirmed..."
+                        # Don't use hardcoded response - let the completion message generation handle this
+                        # The action_executor sets conversation_complete = True, which will trigger our LLM completion message
+                        response_text = "Perfect! Your booking has been confirmed."
                     else:
                         response_text = "Let me check the availability details and get back to you."
                 else:
                     response_text = "I'm checking availability for your appointment. Please wait a moment..."
+                
+                # If conversation is complete after booking creation, generate personalized completion message
+                if session_state.get("conversation_complete", False):
+                    print("🎉 Booking complete - generating personalized completion message")
+                    completion_response = self._generate_completion_message(session_state, response_text)
+                    response_text = completion_response
                 
                 session_state["messages"].append({
                     "role": "assistant", 
@@ -349,6 +357,11 @@ class ConversationHandler:
             
             # Update conversation completion status
             session_state["conversation_complete"] = response_data.get("conversation_complete", False)
+            
+            # If conversation is complete, generate personalized completion message
+            if session_state["conversation_complete"]:
+                completion_response = self._generate_completion_message(session_state, response_data["response"])
+                response_data["response"] = completion_response
             
             # Session is automatically persisted by SessionManager
             # No need for separate conversation storage - it's handled by database-backed sessions
@@ -591,6 +604,60 @@ class ConversationHandler:
     def get_session_stats(self) -> Dict[str, Any]:
         """Get session statistics"""
         return self.session_manager.get_session_stats()
+    
+    def _generate_completion_message(self, session_state: Dict, original_response: str) -> str:
+        """Generate personalized completion message with LLM"""
+        try:
+            booking_state = session_state.get("booking_state", {})
+            customer_name = booking_state.get("customer_name", "")
+            service = booking_state.get("services_requested", "service")
+            appointment_date = booking_state.get("appointmentDate", "")
+            appointment_time = booking_state.get("startTime", "")
+            booking_id = booking_state.get("booking_id", "")
+            
+            # Create personalized completion prompt
+            completion_prompt = f"""
+            Generate a warm, conversational chat message to confirm a salon booking.
+            
+            BOOKING DETAILS:
+            - Customer: {customer_name}
+            - Service: {service}
+            - Date: {appointment_date}
+            - Time: {appointment_time}
+            - Booking ID: {booking_id}
+            
+            REQUIREMENTS:
+            - Write as a CHAT MESSAGE, not an email
+            - Be warm, friendly, and conversational
+            - Confirm the booking details naturally in 2-3 sentences
+            - Thank the customer by name
+            - Ask if they need any additional help
+            - Keep it concise and chat-like
+            - Use 1-2 emojis maximum
+            - NO email format, NO subject lines, NO formal signatures
+            
+            Example format: "Perfect, [Name]! Your [service] is confirmed for [date] at [time]. Is there anything else I can help you with today?"
+            
+            Generate a natural chat completion message:
+            """
+            
+            messages = [
+                SystemMessage(content="You are a friendly salon receptionist confirming a booking."),
+                HumanMessage(content=completion_prompt)
+            ]
+            
+            # Generate completion message with LLM
+            llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7, api_key=os.getenv("OPENAI_API_KEY"))
+            completion_response = llm.invoke(messages)
+            
+            return completion_response.content
+            
+        except Exception as e:
+            print(f"❌ Error generating completion message: {e}")
+            # Fallback to a simple personalized message
+            customer_name = session_state.get("booking_state", {}).get("customer_name", "")
+            service = session_state.get("booking_state", {}).get("services_requested", "appointment")
+            return f"Perfect, {customer_name}! Your {service} is all confirmed. Is there anything else I can help you with today?"
 
 # Global conversation handler instance
 conversation_handler = ConversationHandler()

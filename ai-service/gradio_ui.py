@@ -61,12 +61,8 @@ class BookingChatInterface:
             # Update history
             history.append((message, formatted_response))
             
-            # If conversation is complete, show completion message
-            if conversation_complete:
-                completion_msg = "✅ **Booking Complete!** Your appointment has been confirmed."
-                if booking_state.get("confirmation_id"):
-                    completion_msg += f"\n📋 **Confirmation ID:** {booking_state['confirmation_id']}"
-                history.append(("", completion_msg))
+            # Conversation handler now generates completion message naturally
+            # No need for hardcoded UI completion message
             
             return history, ""
             
