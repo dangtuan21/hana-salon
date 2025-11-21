@@ -24,7 +24,7 @@ class SessionManager:
         # Create explicit BookingState instance
         booking_state = BookingState(
             customer_phone=customer_phone or "",
-            status=BookingStatus.SCHEDULED  # Use correct default status
+            status=BookingStatus.INITIAL  # Use correct default status
         )
         
         session_state = {

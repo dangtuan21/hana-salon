@@ -421,7 +421,7 @@ export const checkTechnicianAvailability = asyncHandler(async (req: Request, res
         $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
         $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
       },
-      status: { $in: ['scheduled', 'confirmed', 'in_progress'] }
+      status: { $in: ['initial', 'confirmed', 'in_progress'] }
     }).populate('services.serviceId', 'name duration_minutes');
     
     // Check for time conflicts
@@ -495,7 +495,7 @@ export const batchCheckTechnicianAvailability = asyncHandler(async (req: Request
         $gte: new Date(appointmentDate.setHours(0, 0, 0, 0)),
         $lt: new Date(appointmentDate.setHours(23, 59, 59, 999))
       },
-      status: { $in: ['scheduled', 'confirmed', 'in_progress'] }
+      status: { $in: ['initial', 'confirmed', 'in_progress'] }
     }).populate('services.serviceId', 'name duration_minutes');
     
     // Check availability for each technician

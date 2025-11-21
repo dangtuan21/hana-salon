@@ -224,7 +224,7 @@ export class GoogleCalendarService {
    */
   private formatBookingStatus(status: string): string {
     switch (status.toLowerCase()) {
-      case 'scheduled': return 'Scheduled 📅';
+      case 'initial': return 'Initial 📅';
       case 'confirmed': return 'Confirmed ✅';
       case 'in_progress': return 'In Progress 🔄';
       case 'completed': return 'Completed ✅';
@@ -243,7 +243,7 @@ export class GoogleCalendarService {
       case 'in_progress':
       case 'completed':
         return 'confirmed';
-      case 'scheduled':
+      case 'initial':
         return 'tentative';
       case 'cancelled':
       case 'no_show':

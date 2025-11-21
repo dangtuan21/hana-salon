@@ -784,7 +784,7 @@ components:
           example: 90
         status:
           type: string
-          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+          enum: [initial, confirmed, in_progress, completed, cancelled]
           description: Current booking status
           example: "confirmed"
         totalAmount:
@@ -902,7 +902,7 @@ components:
           example: 90
         status:
           type: string
-          enum: [scheduled, confirmed, in_progress, completed, cancelled]
+          enum: [initial, confirmed, in_progress, completed, cancelled]
           description: Booking status
           example: "confirmed"
         paymentStatus:

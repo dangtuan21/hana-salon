@@ -26,7 +26,7 @@ async function testUserFriendlyCalendar(): Promise<void> {
           technicianId: new mongoose.Types.ObjectId(),
           duration: 45,
           price: 35.00,
-          status: 'scheduled' as const,
+          status: 'initial' as const,
           notes: 'French tips requested'
         },
         {
@@ -34,14 +34,14 @@ async function testUserFriendlyCalendar(): Promise<void> {
           technicianId: new mongoose.Types.ObjectId(),
           duration: 90,
           price: 55.00,
-          status: 'scheduled' as const,
+          status: 'initial' as const,
           notes: 'Relaxing pedicure with massage'
         }
       ],
       appointmentDate: tomorrow,
       startTime: '14:00',
       endTime: '16:15',
-      status: 'scheduled' as const,
+      status: 'initial' as const,
       totalDuration: 135,
       totalPrice: 90.00,
       paymentStatus: 'pending' as const,

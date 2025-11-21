@@ -26,7 +26,7 @@ async function testSimpleBookingSync(): Promise<void> {
           technicianId: new mongoose.Types.ObjectId(),
           duration: 60,
           price: 75.00,
-          status: 'scheduled' as const,
+          status: 'initial' as const,
           notes: 'Manicure with gel polish'
         },
         {
@@ -34,14 +34,14 @@ async function testSimpleBookingSync(): Promise<void> {
           technicianId: new mongoose.Types.ObjectId(),
           duration: 45,
           price: 50.00,
-          status: 'scheduled' as const,
+          status: 'initial' as const,
           notes: 'Eyebrow shaping'
         }
       ],
       appointmentDate: tomorrow,
       startTime: '14:00',
       endTime: '15:45',
-      status: 'scheduled' as const,
+      status: 'initial' as const,
       totalDuration: 105,
       totalPrice: 125.00,
       paymentStatus: 'pending' as const,

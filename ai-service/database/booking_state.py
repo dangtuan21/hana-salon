@@ -11,7 +11,7 @@ from datetime import datetime
 
 class BookingStatus(str, Enum):
     """Booking status enumeration - aligned with backend IBooking"""
-    SCHEDULED = "scheduled"
+    INITIAL = "initial"
     CONFIRMED = "confirmed"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -104,7 +104,7 @@ class BookingState:
     appointmentDate: Optional[str] = None  # ISO date string (parsed from date_requested)
     startTime: Optional[str] = None       # Time string (parsed from time_requested)
     endTime: Optional[str] = None         # Calculated from startTime + totalDuration
-    status: BookingStatus = BookingStatus.SCHEDULED
+    status: BookingStatus = BookingStatus.INITIAL
     totalDuration: int = 0                # Sum of all service durations
     totalPrice: float = 0.0               # Sum of all service prices
     paymentStatus: str = "pending"
@@ -196,7 +196,7 @@ class BookingState:
             appointmentDate=data.get("appointmentDate"),
             startTime=data.get("startTime"),
             endTime=data.get("endTime"),
-            status=BookingStatus(data.get("status", "scheduled")),
+            status=BookingStatus(data.get("status", "initial")),
             totalDuration=data.get("totalDuration", 0),
             totalPrice=data.get("totalPrice", 0.0),
             paymentStatus=data.get("paymentStatus", "pending"),
@@ -214,7 +214,7 @@ class BookingState:
                 technicianId=svc_data["technicianId"],
                 duration=svc_data["duration"],
                 price=svc_data["price"],
-                status=svc_data.get("status", "scheduled"),
+                status=svc_data.get("status", "initial"),
                 notes=svc_data.get("notes")
             )
             booking_state.services.append(service_pair)

@@ -6,7 +6,7 @@ export interface IServiceTechnicianPair {
   technicianId: mongoose.Types.ObjectId;
   duration: number; // Duration for this specific service
   price: number; // Price for this specific service
-  status?: 'scheduled' | 'in_progress' | 'completed';
+  status?: 'initial' | 'in_progress' | 'completed';
   notes?: string; // Service-specific notes
 }
 
@@ -18,7 +18,7 @@ export interface IBooking extends Document {
   appointmentDate: Date;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  status: 'initial' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
   totalDuration: number; // Sum of all service durations
   totalPrice: number; // Sum of all service prices
   paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
@@ -63,8 +63,8 @@ const ServiceTechnicianPairSchema = new Schema<IServiceTechnicianPair>({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'in_progress', 'completed'],
-    default: 'scheduled'
+    enum: ['initial', 'in_progress', 'completed'],
+    default: 'initial'
   },
   notes: {
     type: String,
@@ -114,8 +114,8 @@ const BookingSchema = new Schema<IBooking>({
   status: {
     type: String,
     required: [true, 'Status is required'],
-    enum: ['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'],
-    default: 'scheduled'
+    enum: ['initial', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'],
+    default: 'initial'
   },
   totalDuration: {
     type: Number,

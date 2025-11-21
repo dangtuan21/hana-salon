@@ -215,7 +215,7 @@ const validateServicesArray = async (services: any[]) => {
         technicianId: serviceData.technicianId,
         duration,
         price,
-        status: serviceData.status || 'scheduled',
+        status: serviceData.status || 'initial',
         notes: serviceData.notes || ''
       });
 

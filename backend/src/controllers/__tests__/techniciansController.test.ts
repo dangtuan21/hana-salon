@@ -884,7 +884,7 @@ describe('Technicians Controller', () => {
           technicianId: technician1._id,
           duration: 60,
           price: 50,
-          status: 'scheduled'
+          status: 'initial'
         }],
         appointmentDate: new Date('2025-12-01'),
         startTime: '09:30',
@@ -968,7 +968,7 @@ describe('Technicians Controller', () => {
           technicianId: technician1._id,
           duration: 60,
           price: 50,
-          status: 'scheduled'
+          status: 'initial'
         }],
         appointmentDate: new Date('2025-12-01'),
         startTime: '10:00',
@@ -988,12 +988,12 @@ describe('Technicians Controller', () => {
           technicianId: technician2._id,
           duration: 90,
           price: 75,
-          status: 'scheduled'
+          status: 'initial'
         }],
         appointmentDate: new Date('2025-12-01'),
         startTime: '09:30',
         endTime: '11:00',
-        status: 'scheduled',
+        status: 'initial',
         totalDuration: 90,
         totalPrice: 75,
         paymentStatus: 'pending',
@@ -1029,7 +1029,7 @@ describe('Technicians Controller', () => {
           technicianId: technician1._id,
           duration: 60,
           price: 50,
-          status: 'scheduled'
+          status: 'initial'
         }],
         appointmentDate: new Date('2025-12-01'),
         startTime: '10:00',

@@ -695,7 +695,7 @@ paths:
           description: Filter by booking status
           schema:
             type: string
-            enum: [scheduled, confirmed, in_progress, completed, cancelled]
+            enum: [initial, confirmed, in_progress, completed, cancelled]
         - name: customerId
           in: query
           description: Filter by customer ID
