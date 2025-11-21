@@ -4,6 +4,7 @@ import servicesRoutes from './servicesRoutes';
 import customersRoutes from './customersRoutes';
 import techniciansRoutes from './techniciansRoutes';
 import bookingsRoutes from './bookingsRoutes';
+import conversationRoutes from './bookingConversationRoutes';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use('/services', servicesRoutes);
 router.use('/customers', customersRoutes);
 router.use('/technicians', techniciansRoutes);
 router.use('/bookings', bookingsRoutes);
+router.use('/bookingConversations', conversationRoutes);
 
 // API info endpoint
 router.get('/', (req: Request, res: Response) => {
@@ -29,6 +31,7 @@ router.get('/', (req: Request, res: Response) => {
         customers: '/api/customers',
         technicians: '/api/technicians',
         bookings: '/api/bookings',
+        bookingConversations: '/api/bookingConversations',
         documentation: '/api-docs'
       }
     }

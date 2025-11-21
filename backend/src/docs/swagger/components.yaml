@@ -922,6 +922,81 @@ components:
           example: "Customer prefers gel polish"
       description: All fields are optional for updates
 
+    ConversationMessage:
+      type: object
+      required:
+        - role
+        - content
+        - timestamp
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+          description: Message sender role
+        content:
+          type: string
+          description: Message content
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+
+    BookingConversation:
+      type: object
+      required:
+        - sessionId
+        - messages
+        - startTime
+        - outcome
+        - totalMessages
+        - conversationDuration
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+        sessionId:
+          type: string
+          description: Unique session identifier
+        customerId:
+          type: string
+          description: Customer ID if identified
+        bookingId:
+          type: string
+          description: Booking ID if created
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConversationMessage'
+          description: Conversation messages
+        startTime:
+          type: string
+          format: date-time
+          description: Conversation start time
+        endTime:
+          type: string
+          format: date-time
+          description: Conversation end time
+        outcome:
+          type: string
+          enum: [booking_created, booking_failed, information_only, abandoned]
+          description: Conversation outcome
+        totalMessages:
+          type: integer
+          minimum: 0
+          description: Total number of messages
+        conversationDuration:
+          type: integer
+          minimum: 0
+          description: Conversation duration in seconds
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
   responses:
     BadRequest:
       description: Bad Request

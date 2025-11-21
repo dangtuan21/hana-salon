@@ -54,6 +54,10 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'Bookings',
       description: 'Booking management endpoints'
+    },
+    {
+      name: 'Booking Conversations',
+      description: 'Conversation history storage and retrieval endpoints'
     }
   ]
 };
