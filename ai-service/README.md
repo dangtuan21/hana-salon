@@ -13,7 +13,7 @@ cp .env.example .env
 # Edit .env and add your OPENAI_API_KEY
 
 # Start the system (API + UI)
-python start_booking_system.py
+python restart_all.py
 ```
 
 ## 🌐 Access Points
@@ -43,49 +43,6 @@ ai-service/
 "Hi, I want a pedicure this Saturday. What times are available?"
 ```
 
-## 🛠️ Manual Start (Alternative)
-
-```bash
-# Terminal 1: API Server
-python api_server.py
-
-# Terminal 2: Gradio UI
-python gradio_ui.py
-```
-
-## 📋 Available Services
-
-- Gel Manicure ($35, 45 min)
-- Acrylic Full Set ($55, 90 min)
-- Luxury Spa Pedicure ($65, 90 min)
-- Complex Nail Art ($75, 120 min)
-- Dip Powder Service ($45, 60 min)
-- Basic Manicure ($25, 30 min)
-
-## 👩‍💼 Expert Technicians
-
-- Maria Rodriguez (Expert) - Nail art specialist
-- Lauren Chen (Expert) - Spa treatments specialist
-- Emma Wilson (Senior) - All-around technician
-- Sofia Martinez (Master) - Premium nail art
-- Isabella Torres (Senior) - Manicures & pedicures
-
-## 🔧 Environment Variables
-
-```bash
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-## 📡 API Endpoints
-
-- `POST /conversation/start` - Start booking conversation
-- `POST /conversation/continue` - Continue conversation
-- `GET /conversation/{id}/status` - Get conversation status
-- `DELETE /conversation/{id}` - Clear conversation
-- `GET /booking/{confirmation_id}` - Get booking details
-- `GET /customer/{customer_id}` - Get customer info
-- `GET /health` - Health check
-
 ## 🎯 Features
 
 - **Natural Conversations** - Chat like you're calling the salon
@@ -99,5 +56,5 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 Press `Ctrl+C` in the terminal or:
 ```bash
-pkill -f "start_booking_system.py"
+pkill -f "restart_all.py"
 ```
