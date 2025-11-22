@@ -262,7 +262,7 @@ class BookingState:
         """Check if booking has all required information for backend creation"""
         return (
             bool(self.customerId) and
-            bool(self.services) and
+            bool(len(self.services) > 0) and
             bool(self.appointmentDate) and
             bool(self.startTime)
         )

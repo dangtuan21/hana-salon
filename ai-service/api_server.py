@@ -4,11 +4,11 @@ FastAPI server for Hana Salon Booking Service
 Pure LLM conversational booking system
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import os
 from dotenv import load_dotenv
 
@@ -73,6 +73,9 @@ async def root():
             "get_customer": "/customer/{customer_id}",
             "start_conversation": "/conversation/start",
             "continue_conversation": "/conversation/continue",
+            "start_voice_conversation": "/conversation/voice/start",
+            "voice_message": "/conversation/{session_id}/voice/message",
+            "transcribe_audio": "/voice/transcribe",
             "conversation_status": "/conversation/{session_id}/status",
             "clear_conversation": "/conversation/{session_id}",
             "docs": "/docs"
@@ -169,8 +172,9 @@ async def get_customer_by_id(customer_id: str):
         print(f"❌ Error in customer endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Import conversation handler
+# Import conversation handler and voice service
 from conversation_handler import conversation_handler
+from services.voice_service import voice_service
 
 @app.post("/conversation/start", response_model=ConversationResponse)
 async def start_conversation(request: ConversationStartRequest):
@@ -306,6 +310,95 @@ async def get_customer_conversations(customer_id: str, limit: int = 10):
     except Exception as e:
         print(f"❌ Error getting customer conversations: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get customer conversations: {str(e)}")
+
+
+# Voice Input Endpoints (Option B: Voice Input Only)
+
+@app.post("/conversation/voice/start", response_model=ConversationResponse)
+async def start_voice_conversation(
+    audio_file: UploadFile = File(...),
+    customer_phone: Optional[str] = Form(None)
+):
+    """Start a new conversation with voice input"""
+    try:
+        print("=" * 80)
+        print(f"🎤 DEBUG: VOICE API ENDPOINT CALLED - START VOICE CONVERSATION")
+        print(f"📁 Audio file: {audio_file.filename}, Content-Type: {audio_file.content_type}")
+        print("=" * 80)
+        
+        # Transcribe audio to text
+        transcribed_text = await voice_service.transcribe_audio(audio_file)
+        print(f"🗣️ Transcribed: {transcribed_text}")
+        
+        # Process as regular conversation
+        response = conversation_handler.start_conversation(
+            message=transcribed_text,
+            customer_phone=customer_phone
+        )
+        
+        print(f"✅ Voice conversation started successfully")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in voice conversation start: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice conversation failed: {str(e)}")
+
+
+@app.post("/conversation/{session_id}/voice/message", response_model=ConversationResponse)
+async def send_voice_message(
+    session_id: str,
+    audio_file: UploadFile = File(...)
+):
+    """Continue conversation with voice input"""
+    try:
+        print("=" * 80)
+        print(f"🎤 DEBUG: VOICE API ENDPOINT CALLED - CONTINUE VOICE CONVERSATION")
+        print(f"🆔 Session ID: {session_id}")
+        print(f"📁 Audio file: {audio_file.filename}, Content-Type: {audio_file.content_type}")
+        print("=" * 80)
+        
+        # Transcribe audio to text
+        transcribed_text = await voice_service.transcribe_audio(audio_file)
+        print(f"🗣️ Transcribed: {transcribed_text}")
+        
+        # Process as regular conversation
+        response = conversation_handler.continue_conversation(
+            session_id=session_id,
+            message=transcribed_text
+        )
+        
+        print(f"✅ Voice message processed successfully")
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in voice message: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Voice message failed: {str(e)}")
+
+
+@app.post("/voice/transcribe")
+async def transcribe_audio_only(audio_file: UploadFile = File(...)):
+    """Transcribe audio file to text (utility endpoint)"""
+    try:
+        print(f"🎤 Transcribing audio file: {audio_file.filename}")
+        
+        transcribed_text = await voice_service.transcribe_audio(audio_file)
+        
+        return {
+            "transcribed_text": transcribed_text,
+            "filename": audio_file.filename,
+            "content_type": audio_file.content_type,
+            "success": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error in audio transcription: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 
 if __name__ == "__main__":

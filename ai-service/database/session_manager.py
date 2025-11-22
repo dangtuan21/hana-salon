@@ -21,6 +21,8 @@ class SessionManager:
         self.sessions_api = f"{self.backend_url}/api/sessions"
         # Keep minimal in-memory cache for active sessions
         self._active_sessions: Dict[str, Dict] = {}
+        # Session event callbacks
+        self._on_session_start_callback = None
     
     def create_session(self, customer_phone: str = None) -> str:
         """Create a new conversation session"""
@@ -60,6 +62,16 @@ class SessionManager:
             print(f"⚠️ Failed to store session in database: {e}")
         
         print(f"📝 Created new session: {session_id}")
+        
+        # Trigger session start event
+        if self._on_session_start_callback:
+            try:
+                print("🚀 Triggering session start event...")
+                self._on_session_start_callback(session_id, session_state)
+                print("✅ Session start event completed")
+            except Exception as e:
+                print(f"⚠️ Session start event failed: {e}")
+        
         return session_id
     
     def get_session(self, session_id: str) -> Optional[Dict]:
@@ -109,6 +121,7 @@ class SessionManager:
     
     def update_session(self, session_id: str, session_data: Dict) -> bool:
         """Update session data"""
+        print(f"DEBUG: Updating session {session_id}")
         if session_id in self._active_sessions:
             session_data["last_activity"] = datetime.now().isoformat()
             self._active_sessions[session_id] = session_data
@@ -177,3 +190,7 @@ class SessionManager:
             "completed_sessions": completed_sessions,
             "completion_rate": completed_sessions / total_sessions if total_sessions > 0 else 0
         }
+    
+    def set_on_session_start_callback(self, callback):
+        """Register a callback to be called when a new session is created"""
+        self._on_session_start_callback = callback

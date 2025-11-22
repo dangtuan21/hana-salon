@@ -27,7 +27,7 @@ def run_tests():
         print("❌ No test files found!")
         return False
     
-    print(f"🧪 Found {len(test_files)} test files")
+    print(f"🧪 Found  test files: {len(test_files)}")
     print("=" * 60)
     
     passed = 0

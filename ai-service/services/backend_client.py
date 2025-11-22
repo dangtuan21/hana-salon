@@ -46,7 +46,7 @@ class BackendAPIClient:
             print(f"📡 Response: {response.status_code} - {response.text[:200]}...")
             if response.status_code == 200:
                 data = response.json().get('data', {}).get('technicians', [])
-                print(f"✅ Found {len(data)} available technicians")
+                print(f"✅ Found available technicians: {len(data)} ")
                 return data
             print(f"❌ Failed to get technicians: {response.status_code}")
             return []
@@ -63,7 +63,7 @@ class BackendAPIClient:
             print(f"📡 Response: {response.status_code} - {response.text[:200]}...")
             if response.status_code == 200:
                 data = response.json().get('data', {}).get('technicians', [])
-                print(f"✅ Found {len(data)} technicians for service")
+                print(f"✅ Found technicians for service: {len(data)}")
                 return data
             print(f"❌ No technicians found: {response.status_code}")
             return []
@@ -157,7 +157,7 @@ class BackendAPIClient:
             print(f"📡 Response: {response.status_code} - {response.text[:200]}...")
             if response.status_code == 200:
                 data = response.json().get('data', {}).get('services', [])
-                print(f"✅ Found {len(data)} services")
+                print(f"✅ Found services: {len(data)}")
                 return data
             print(f"❌ Failed to get services: {response.status_code}")
             return []

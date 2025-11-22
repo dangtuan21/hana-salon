@@ -143,6 +143,59 @@ class BookingChatInterface:
             
         except Exception as e:
             return f"Error clearing conversation: {str(e)}"
+    
+    def send_voice_message(self, audio_file: str, history: List[Tuple[str, str]]) -> Tuple[List[Tuple[str, str]], str]:
+        """Send a voice message to the booking API and update chat history"""
+        
+        if not audio_file:
+            return history, None
+        
+        try:
+            # Prepare the audio file for upload
+            with open(audio_file, 'rb') as f:
+                files = {'audio_file': (audio_file, f, 'audio/wav')}
+                
+                # Determine if this is a new conversation or continuation
+                if self.current_session_id is None:
+                    # Start new voice conversation
+                    url = f"{self.api_base_url}/conversation/voice/start"
+                    response = requests.post(url, files=files, timeout=60)
+                else:
+                    # Continue existing voice conversation
+                    url = f"{self.api_base_url}/conversation/{self.current_session_id}/voice/message"
+                    response = requests.post(url, files=files, timeout=60)
+                
+                response.raise_for_status()
+                api_response = response.json()
+            
+            # Update session ID if new conversation
+            if self.current_session_id is None:
+                self.current_session_id = api_response.get("session_id")
+            
+            # Extract response data
+            assistant_response = api_response.get("response", "I'm sorry, I couldn't process that voice message.")
+            booking_state = api_response.get("booking_state", {})
+            actions_taken = api_response.get("actions_taken", [])
+            
+            # Format the response
+            formatted_response = self._format_response(
+                assistant_response, booking_state, actions_taken, 
+                api_response.get("conversation_complete", False)
+            )
+            
+            # Add to conversation history
+            history.append(("🎤 [Voice Message]", formatted_response))
+            
+            return history, None
+            
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Connection error: {str(e)}"
+            history.append(("🎤 [Voice Message]", f"❌ {error_msg}"))
+            return history, None
+        except Exception as e:
+            error_msg = f"Error processing voice message: {str(e)}"
+            history.append(("🎤 [Voice Message]", f"❌ {error_msg}"))
+            return history, None
 
 def create_gradio_interface():
     """Create a simple, clean Gradio interface"""
@@ -175,21 +228,37 @@ def create_gradio_interface():
             show_label=False
         )
         
-        # Message input
-        msg_input = gr.Textbox(
-            placeholder="Hi, I want to book a manicure...",
-            label="Your Message",
-            lines=1
-        )
+        # Input options
+        with gr.Tab("💬 Text Input"):
+            msg_input = gr.Textbox(
+                placeholder="Hi, I want to book a manicure...",
+                label="Your Message",
+                lines=1
+            )
+            
+            with gr.Row():
+                send_btn = gr.Button("Send", variant="primary")
+                clear_btn = gr.Button("New Chat", variant="secondary")
         
-        # Simple buttons
-        with gr.Row():
-            send_btn = gr.Button("Send", variant="primary")
-            clear_btn = gr.Button("New Chat", variant="secondary")
+        with gr.Tab("🎤 Voice Input"):
+            gr.Markdown("**Record your voice message and we'll transcribe it for you!**")
+            
+            voice_input = gr.Audio(
+                label="Record Voice Message",
+                type="filepath",
+                format="wav"
+            )
+            
+            with gr.Row():
+                voice_send_btn = gr.Button("🎤 Send Voice Message", variant="primary")
+                voice_clear_btn = gr.Button("New Chat", variant="secondary")
         
         # Event handlers
         def send_message_handler(message, history):
             return chat_interface.send_message(message, history)
+        
+        def send_voice_message_handler(audio_file, history):
+            return chat_interface.send_voice_message(audio_file, history)
         
         def clear_conversation_handler():
             chat_interface.start_new_conversation()
@@ -211,6 +280,18 @@ def create_gradio_interface():
         clear_btn.click(
             clear_conversation_handler,
             outputs=[chatbot, msg_input]
+        )
+        
+        # Voice input events
+        voice_send_btn.click(
+            send_voice_message_handler,
+            inputs=[voice_input, chatbot],
+            outputs=[chatbot, voice_input]
+        )
+        
+        voice_clear_btn.click(
+            clear_conversation_handler,
+            outputs=[chatbot, voice_input]
         )
     
     return interface

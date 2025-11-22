@@ -18,7 +18,7 @@ from services import BackendAPIClient, parse_date, parse_time
 from services.booking_manager import BookingManager
 from services.action_executor import ActionExecutor
 from database import SessionManager, BookingState, BookingStatus, ServiceTechnicianPair
-from database.enums import ActionResult
+from database.enums import ActionResult, BookingAction
 
 # Load environment variables
 load_dotenv()
@@ -41,19 +41,26 @@ class ConversationHandler:
         self.api_client = BackendAPIClient(backend_url)
         self.booking_manager = BookingManager()
         self.action_executor = ActionExecutor(self.api_client)
+        
+        # Register session start event handler
+        self.session_manager.set_on_session_start_callback(self._on_session_start)
+    
+    def _on_session_start(self, session_id: str, session_state: Dict):
+        """Handle session start event - preload resources"""
+        print("🔄 Preloading services and technicians for new session...")
+        preload_actions = self.action_executor.execute_actions(session_state, [BookingAction.GET_SERVICES, BookingAction.GET_TECHNICIANS])
+        print(f"✅ Preloaded: {len(preload_actions)} actions completed")
+        
+        # Update session with preloaded data
+        self.session_manager.update_session(session_id, session_state)
     
     def start_conversation(self, message: str, customer_phone: str = None) -> Dict[str, Any]:
         """Start a new booking conversation"""
-        # Create new session using SessionManager
+        # Create new session using SessionManager (triggers session start event)
         session_id = self.session_manager.create_session(customer_phone)
         session_state = self.session_manager.get_session(session_id)
         
-        # Preload services and technicians at session start
-        print("🔄 Preloading services and technicians for new session...")
-        preload_actions = self.action_executor.execute_actions(session_state, ["get_services", "get_technicians"])
-        print(f"✅ Preloaded: {len(preload_actions)} actions completed")
-        
-        # Process the initial message
+        # Process the initial message (resources already preloaded by session start event)
         response = self._process_message(session_state, message)
         
         # Update session
@@ -77,6 +84,7 @@ class ConversationHandler:
     
     def _process_message(self, session_state: Dict, user_message: str) -> Dict[str, Any]:
         """Process a single message using pure LLM intelligence"""
+        print(f"DEBUG: Processing message: {user_message}")
         
         # Add user message to history
         session_state["messages"].append({
@@ -131,48 +139,63 @@ class ConversationHandler:
             original_response_data = json.loads(llm_response.content)
             
             # Update booking state with extracted data
-            booking_state_dict = session_state["booking_state"]
+            booking_state = BookingState.from_dict(session_state["booking_state"])
+
             updates = original_response_data.get("booking_state_updates", {})
             
             # Check if user selected an alternative time
             selected_alternative = None
-            if updates.get("time_requested") and booking_state_dict.get("alternative_times"):
+            if updates.get("time_requested") and booking_state.alternative_times:
                 selected_time = updates["time_requested"]
-                for alt in booking_state_dict["alternative_times"]:
+                for alt in booking_state.alternative_times:
                     if alt["time"] == selected_time:
                         selected_alternative = alt
                         print(f" Matched alternative selection: {selected_time} with {alt['technician']}")
                         break
             
+            booking_state_dict = session_state["booking_state"]
             for key, value in updates.items():
                 if value and value.strip():  # Only update if value is not empty
                     booking_state_dict[key] = value
                     print(f" Updated {key}: {value}")
-            
+                    if key == "services_requested" and len(booking_state_dict.get("services", [])) == 0:
+                        # Create updated BookingState with new services_requested
+                        updated_booking_state = BookingState.from_dict(booking_state_dict)
+                        print(f"ttt Calling populate_services_if_ready with services_requested: {value}")
+                        self.booking_manager.populate_services_if_ready(updated_booking_state)
+                        # Update the session with populated services
+                        session_state["booking_state"] = updated_booking_state.to_dict()
+
+
+            booking_state = BookingState.from_dict(session_state["booking_state"])
+            print(f"ttt Final booking_state: {booking_state}")
+                            
             # If alternative was selected, update technician and clear alternatives
             if selected_alternative:
                 # Update technician assignment for the service
-                if booking_state_dict.get("services") and len(booking_state_dict["services"]) > 0:
-                    booking_state_dict["services"][0]["technicianId"] = selected_alternative["technician_id"]
+                if booking_state.services and len(booking_state.services) > 0:
+                    booking_state.services[0]["technicianId"] = selected_alternative["technician_id"]
                     print(f" Assigned technician: {selected_alternative['technician']} ({selected_alternative['technician_id']})")
                 
                 # Clear alternatives since one was selected
-                booking_state_dict["alternative_times"] = []
+                booking_state.alternative_times
                 print(" Cleared alternative times after selection")
             
-            session_state["booking_state"] = booking_state_dict
+            session_state["booking_state"] = booking_state.to_dict()
             
             print(f"📋 Current booking state: {session_state['booking_state']}")
-            
-            # IMPLEMENT SEQUENTIAL FLOW - Check what data we have and what's missing
-            booking_state = session_state["booking_state"]
-            
+                        
             # Check data collection status
-            name_collected = bool(booking_state.get("customer_name"))
-            phone_collected = bool(booking_state.get("customer_phone"))
-            service_collected = bool(booking_state.get("services_requested"))
-            date_collected = bool(booking_state.get("date_requested"))
-            time_collected = bool(booking_state.get("time_requested"))
+            name_collected = bool(booking_state.customer_name)
+            phone_collected = bool(booking_state.customer_phone)
+            service_collected = bool(booking_state.services_requested)
+            date_collected = bool(booking_state.date_requested)
+            time_collected = bool(booking_state.time_requested)
+            
+            # Debug: Track data collection and services array state
+            print(f"🔍 DEBUG: Data collection status - name:{name_collected}, phone:{phone_collected}, service:{service_collected}, date:{date_collected}, time:{time_collected}")
+            print(f"🔍 DEBUG: services_requested: '{booking_state.services_requested}'")
+            print(f"🔍 DEBUG: services : {booking_state.services}")
             
             all_data_collected = (name_collected and phone_collected and 
                                 service_collected and date_collected and time_collected)
@@ -194,7 +217,7 @@ class ConversationHandler:
                 print("✅ User confirmed - proceeding with booking")
                 
                 # Ensure services are populated before checking availability
-                actions_taken = self.action_executor.execute_actions(session_state, ["get_services", "check_availability"])
+                actions_taken = self.action_executor.execute_actions(session_state, [BookingAction.GET_SERVICES, BookingAction.CHECK_AVAILABILITY])
                 
                 # Generate response based on availability check results
                 availability_result = None
@@ -255,22 +278,22 @@ class ConversationHandler:
                     "response": original_response_data.get("response", "Hi! Could I get your name and phone number?"),
                     "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
-            elif not service_collected:
+            if not service_collected:
                 print("🔄 STEP 2: Missing service - using LLM response")
                 response_data = {
                     "response": original_response_data.get("response", "What service would you like to book today?"),
                     "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
-            elif not date_collected or not time_collected:
+            if not date_collected or not time_collected:
                 print("🔄 STEP 3: Missing date/time - using LLM response")
                 response_data = {
                     "response": original_response_data.get("response", "When would you like your appointment?"),
                     "actions_neededs": original_response_data.get("actions_neededs", [])
                 }
-            elif all_data_collected:
+            if all_data_collected:
                 # Check if appointment data is ready for booking
-                is_ready_for_booking = (booking_state.get("appointmentDate") is not None and
-                                      booking_state.get("startTime") is not None)
+                is_ready_for_booking = (booking_state.appointmentDate is not None and
+                                      booking_state.startTime is not None)
                 
                 if is_ready_for_booking:
                     print("🔄 STEP 5: Appointment already confirmed - using LLM response")
@@ -341,7 +364,7 @@ class ConversationHandler:
             # Special handling for create_booking - ensure all prerequisites are met
             if "create_booking" in requested_actions:
                 booking_state = session_state["booking_state"]
-                if booking_state.get("appointmentDate") is None:
+                if booking_state.appointmentDate is None:
                     # Need to parse date/time first
                     print("🔄 Booking requested but date/time not parsed, triggering availability check")
                     requested_actions = ["check_availability", "create_booking"]
@@ -404,8 +427,7 @@ class ConversationHandler:
         """Create a comprehensive system prompt for the LLM"""
         
         # Use preloaded data from booking state (loaded at session start)
-        booking_state_dict = session_state["booking_state"]
-        booking_state = BookingState.from_dict(booking_state_dict)
+        booking_state = BookingState.from_dict(session_state["booking_state"])
         
         # Get preloaded services and technicians
         services = booking_state.available_services or []
@@ -561,13 +583,13 @@ class ConversationHandler:
     
     def _is_appointment_confirmation(self, user_message: str, session_state: Dict) -> bool:
         """Check if user message is confirming appointment details even without pending confirmation"""
-        booking_state = session_state.get("booking_state", {})
+        booking_state = BookingState.from_dict(session_state["booking_state"])
         
         # Only check if we have all the basic info but no confirmed appointment
-        has_customer_info = booking_state.get("customer_name") and booking_state.get("customer_phone")
-        has_service = booking_state.get("services_requested")
-        has_datetime = booking_state.get("date_requested") and booking_state.get("time_requested")
-        no_appointment_date = not booking_state.get("appointmentDate")
+        has_customer_info = booking_state.customer_name and booking_state.customer_phone
+        has_service = booking_state.services_requested
+        has_datetime = booking_state.date_requested and booking_state.time_requested
+        no_appointment_date = not booking_state.appointmentDate
         
         if not (has_customer_info and has_service and has_datetime and no_appointment_date):
             return False

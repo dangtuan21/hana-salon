@@ -42,6 +42,7 @@ class ActionExecutor:
                 actions_taken.append(result)
                 
             elif action == BookingAction.GET_TECHNICIANS:
+                print(f"🔧 DEBUG: Executing GET_TECHNICIANS action")
                 result = self._get_technicians(session_state)
                 actions_taken.append(result)
                 
@@ -54,6 +55,7 @@ class ActionExecutor:
                 actions_taken.append(result)
                 
             elif action == BookingAction.GET_SERVICES:
+                print(f"🔧 DEBUG: Executing GET_SERVICES action")
                 result = self._get_services(session_state)
                 actions_taken.append(result)
                 
@@ -69,8 +71,7 @@ class ActionExecutor:
     
     def _check_availability(self, session_state: Dict) -> str:
         """Check availability for all services in the booking"""
-        booking_state_dict = session_state["booking_state"]
-        booking_state = BookingState.from_dict(booking_state_dict)
+        booking_state = BookingState.from_dict(session_state["booking_state"])
         date = booking_state.date_requested
         time = booking_state.time_requested
         
@@ -211,8 +212,7 @@ class ActionExecutor:
         pending = session_state.get("datetime_parsing")
         if pending:
             # Update booking state with confirmed date/time
-            booking_state_dict = session_state["booking_state"]
-            booking_state = BookingState.from_dict(booking_state_dict)
+            booking_state = BookingState.from_dict(session_state["booking_state"])
             
             # Set parsed date/time from pending confirmation
             booking_state.appointmentDate = pending["parsed_date"]
@@ -230,30 +230,16 @@ class ActionExecutor:
     
     def _get_technicians(self, session_state: Dict) -> str:
         """Get available technicians for the requested service"""
-        booking_state = session_state["booking_state"]
-        service_name = booking_state.get("services_requested")
-        
-        if service_name:
-            # First get service by name
-            service = self.api_client.get_service_by_name(service_name)
-            if service:
-                # Then get technicians for that service
-                technicians = self.api_client.get_technicians_for_service(service.get('_id'))
-                booking_state["available_technicians"] = technicians
-                return ActionResult.RETRIEVED_TECHNICIANS
-            else:
-                return f"{ActionResult.RETRIEVED_TECHNICIANS}: Service not found"
-        else:
-            # Get all available technicians
-            technicians = self.api_client.get_available_technicians()
-            booking_state["available_technicians"] = technicians
-            return ActionResult.RETRIEVED_TECHNICIANS
+        booking_state_dict = session_state["booking_state"]
+        # Get all available technicians
+        technicians = self.api_client.get_available_technicians()
+        booking_state_dict["available_technicians"] = technicians
+        return ActionResult.RETRIEVED_TECHNICIANS
     
     def _create_booking(self, session_state: Dict) -> str:
-        """Create a new booking with enhanced multi-service support"""
-        booking_state_dict = session_state["booking_state"]
-        booking_state = BookingState.from_dict(booking_state_dict)
-        
+        """Create a new booking with enhanced multi-service support"""        
+        booking_state = BookingState.from_dict(session_state["booking_state"])
+
         print(f"🔄 Creating booking for {len(booking_state.services)} service(s)")
         
         # Validate booking readiness
@@ -426,18 +412,12 @@ class ActionExecutor:
     
     def _get_services(self, session_state: Dict) -> str:
         """Get all available services"""
-        services = self.api_client.get_all_services()
+        print(f"🔧 DEBUG: ActionExecutor._get_services() CALLED")
+
         booking_state_dict = session_state["booking_state"]
+        # Get all available services
+        services = self.api_client.get_all_services()
         booking_state_dict["available_services"] = services
-        
-        # Convert to BookingState object and populate services if ready
-        booking_state = BookingState.from_dict(booking_state_dict)
-        self.booking_manager.populate_services_if_ready(booking_state, session_state)
-        
-        # Update session with populated services
-        session_state["booking_state"] = booking_state.to_dict()
-        print(f"📋 Services populated: {len(booking_state.services)} service(s) in booking state")
-        
         return ActionResult.SERVICES_RETRIEVED
     
     def _update_booking(self, session_state: Dict) -> str:
@@ -535,5 +515,5 @@ class ActionExecutor:
         except Exception as e:
             print(f"⚠️ Error finding alternatives: {e}")
             
-        print(f"💡 Found {len(alternatives)} alternative time slots")
+        print(f"💡 Found alternative time slots: {len(alternatives)}")
         return alternatives

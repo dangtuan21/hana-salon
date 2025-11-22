@@ -15,82 +15,18 @@ class BookingManager:
     
     def __init__(self):
         pass
-    
-    def update_booking_state(self, session_state: Dict, updates: Dict) -> None:
-        """Update booking state with LLM extracted information"""
         
-        # Get BookingState object from session
-        booking_state = BookingState.from_dict(session_state["booking_state"])
-        
-        # Track what was updated for confirmation logic
-        date_updated = False
-        time_updated = False
-        
-        # Update fields if they exist in updates
-        for field, value in updates.items():
-            if hasattr(booking_state, field) and value:
-                old_value = getattr(booking_state, field)
-                if old_value != value:
-                    setattr(booking_state, field, value)
-                    print(f"🔍 Updated {field}: '{old_value}' -> '{value}'")
-                    
-                    # Track date/time updates for confirmation
-                    if field == 'date_requested':
-                        date_updated = True
-                        print(f"📝 Updated date_requested: {value}")
-                    elif field == 'time_requested':
-                        time_updated = True
-                        print(f"📝 Updated time_requested: {value}")
-        
-        # Populate services array if ready
-        self.populate_services_if_ready(booking_state, session_state)
-        
-        # Check if we need confirmation for new date/time
-        # BUT ONLY if there's no existing pending confirmation AND customer info is complete AND service is selected
-        customer_info_complete = booking_state.customer_name and booking_state.customer_phone
-        service_selected = booking_state.services_requested and booking_state.services_requested.strip()
-        if (date_updated or time_updated) and not session_state.get("datetime_parsing") and customer_info_complete and service_selected:
-            date = booking_state.date_requested
-            time = booking_state.time_requested
-            
-            if date and time:
-                parsed_date = parse_date(date)
-                parsed_time = parse_time(time)
-                
-                if parsed_date and parsed_time:
-                    needs_confirmation = self.needs_date_confirmation(date, time, parsed_date, parsed_time)
-                    
-                    if needs_confirmation:
-                        # Create pending confirmation
-                        # Convert parsed_date string to datetime object for formatting
-                        from datetime import datetime
-                        date_obj = datetime.fromisoformat(parsed_date)
-                        time_obj = datetime.strptime(parsed_time, "%H:%M").time()
-                        
-                        formatted_date = date_obj.strftime("%A, %B %d")
-                        formatted_time = time_obj.strftime("%-I%p").lower()
-                        
-                        session_state["datetime_parsing"] = {
-                            "type": "datetime",
-                            "original_date": date,
-                            "original_time": time,
-                            "parsed_date": parsed_date,
-                            "parsed_time": parsed_time,
-                            "formatted_date": formatted_date,
-                            "formatted_time": formatted_time,
-                            "services": booking_state.services_requested or "your appointment"
-                        }
-                        
-                        print(f"❓ Created pending confirmation for {formatted_date} at {formatted_time}")
-        
-        # Update session with modified BookingState
-        session_state["booking_state"] = booking_state.to_dict()
-    
-    def populate_services_if_ready(self, booking_state: BookingState, session_state: Dict) -> None:
+    def populate_services_if_ready(self, booking_state: BookingState) -> None:
         """Populate services array if we have both requested services and available services"""
+        
+        print(f"🔍 DEBUG: populate_services_if_ready called")
+        print(f"🔍 DEBUG: services_requested = '{booking_state.services_requested}'")
+        print(f"🔍 DEBUG: available_services count = {len(booking_state.available_services) if booking_state.available_services else 0}")
+        print(f"🔍 DEBUG: current services count = {len(booking_state.services) if booking_state.services else 0}")
         
         # Only populate if we have services_requested and services array needs population
         if not booking_state.services_requested:
+            print("🔍 DEBUG: No services_requested - skipping population")
             return
         
         # Parse requested services
@@ -178,12 +114,7 @@ class BookingManager:
             booking_state.totalDuration = total_duration
             booking_state.totalPrice = total_price
             print(f"💰 Total: ${total_price}, {total_duration} minutes")
-    
-    def is_booking_ready(self, booking_state_dict: Dict) -> bool:
-        """Check if booking has all required information"""
-        booking_state = BookingState.from_dict(booking_state_dict)
-        return booking_state.is_ready_for_booking()
-    
+        
     def needs_date_confirmation(self, original_date: str, original_time: str, parsed_date: str, parsed_time: str) -> bool:
         """Check if the parsed date/time needs confirmation from the user"""
         # Relative dates that need confirmation
